@@ -1362,7 +1362,7 @@ function tryBuild(i) {
   if (b.r > 1.5) for (const [ox, oz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) hs.push(heightAt(x + ox * b.r * 0.8, z + oz * b.r * 0.8));
   const hmin = Math.min(...hs), hmax = Math.max(...hs);
   if (hmin < 0.9) { toast('Too close to the water'); sfx('no'); return; }
-  if (hmax - hmin > (b.r > 1.5 ? 1.8 : 1.2)) { toast('The ground is too uneven here'); sfx('no'); return; }
+  if (hmax - hmin > (b.key === 'cabin' || b.key === 'beacon' ? 4.2 : b.r > 1.5 ? 1.8 : 1.2)) { toast('The ground is too uneven here'); sfx('no'); return; }
   for (const o of obstacles) if (o.active && Math.hypot(o.x - x, o.z - z) < o.r + b.r) { toast('Something is in the way'); sfx('no'); return; }
   for (const k in b.cost) inv[k] -= bcost(b, k);
   const y = hs.reduce((a, c) => a + c, 0) / hs.length;
@@ -10932,7 +10932,7 @@ try {
   if (si && pb && pb.parentNode) { const d = new Date(si.t), el = document.createElement('div'); el.style.cssText = 'margin-top:8px;font:500 12px "Segoe UI",system-ui,sans-serif;color:#9eaabb;letter-spacing:.05em'; el.textContent = 'Last saved: Day ' + si.day + ' · ' + d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); pb.parentNode.insertBefore(el, pb.nextSibling); }
 } catch (e) { /* ignore */ }
 /* new game wipes every save key */
-{ const ng = $('newgame'); if (ng) ng.addEventListener('click', () => { try { for (const k of [SAVE, SAVE + '_bak', 'lumen_saveinfo', 'lumen_isles', 'lumen_grow', 'lumen_bounty', 'lumen_story', 'lumen_secrets', 'lumen_lm', 'lumen_chq', 'lumen_worldb', 'lumen_tips', 'lumen_quality']) localStorage.removeItem(k); } catch (e) { /* ignore */ } }); }
+{ const ng = $('newgame'); if (ng) ng.addEventListener('click', () => { try { for (const k of [SAVE, SAVE + '_bak', 'lumen_build', 'lumen_kn', 'lumen_flown', 'lumen_saveinfo', 'lumen_isles', 'lumen_grow', 'lumen_bounty', 'lumen_story', 'lumen_secrets', 'lumen_lm', 'lumen_chq', 'lumen_worldb', 'lumen_tips', 'lumen_quality']) localStorage.removeItem(k); } catch (e) { /* ignore */ } }); }
 /* event-driven saves: dialogs closing, entering or leaving a building or dungeon, a new day, tab hidden or closed */
 function asTick(dt) {
   if (!playing || typeof started === 'undefined' || !started) return; const now = performance.now(); let why = null;
@@ -13325,6 +13325,285 @@ Object.assign(WHISPER, { nest: () => knMenu(), council: () => knMenu(), kingdom:
   }; ADM_HELP.push('species <goblin|orc|elf|dwarf|lizard|yeti|troll|gnoll>  ·  renown <n>  ·  crown');
 }
 Object.assign(window.__lumen, { NEST_BY_ID, NESTS, KN, knMenu, knCrown, knChallenge, knReady });
+/* ============================== BUILDING: put down foundations, walls, doors, windows, floors, stairs and roofs from real materials, anywhere, and walk around inside what you made ============================== */
+const BLD = { LH: 3.4, S: 4, CELL: 16, STEP: 0.95, pieces: [], slots: new Map(), cells: new Map(), cg: new Map(), sg: new Map(), on: false, sel: 0, mat: 0, L: 0, rot: 0, ghost: null, ghostKey: '', uid: 1, dirty: new Set(), save: 0, found: new Map(), max: 6000, prompt: null };
+let BH = 0;   // the height the player stands at, used to pick which floor you are on
+const BMATS = [{ n: 'Wood', c: 0x9a6a3a, it: 'wood' }, { n: 'Larch', c: 0xb88a4a, it: 'larch' }, { n: 'Stone', c: 0x8a8c96, it: 'stone' }, { n: 'Iron', c: 0x5a6270, it: 'iron' }, { n: 'Crystal', c: 0x7fd8ff, it: 'crystal' }, { n: 'Thatch', c: 0xc8a860, it: 'bark' }, { n: 'Marble', c: 0xdfe0f0, it: 'stone' }, { n: 'Violet stone', c: 0x5a3a9a, it: 'crystal' }];
+const shadeC = (h, f) => { const r = Math.min(255, ((h >> 16) & 255) * f) | 0, g = Math.min(255, ((h >> 8) & 255) * f) | 0, b = Math.min(255, (h & 255) * f) | 0; return (r << 16) | (g << 8) | b; };
+const bgk = (x, z) => Math.floor(x / 8) * 30011 + Math.floor(z / 8);
+const bcol = (p, k) => { if (typeof k === 'number') return k; const m = BMATS[p.m] ? BMATS[p.m].c : 0x9a6a3a; return k === 'M' ? m : k === 'D' ? shadeC(m, 0.7) : shadeC(m, 1.22); };
+/* ---------- the piece catalogue. Parts are [width, height, depth, x, y, z, yaw, pitch, colour] in the piece's own frame ---------- */
+const BWC1 = 0x8a5a30, BWC2 = 0x6a4224;
+const BPD = {
+  found: { n: 'Foundation', ic: '⬛', cls: 'c', cost: 4, parts: () => [[4, 0.4, 4, 0, -0.2, 0, 0, 0, 'M'], [4, 5.2, 4, 0, -3.0, 0, 0, 0, 'D']], surf: [{ k: 'f', x: 0, z: 0, hx: 2, hz: 2, y: 0 }] },
+  floor: { n: 'Floor', ic: '🟫', cls: 'c', cost: 2, parts: () => [[4, 0.25, 4, 0, -0.125, 0, 0, 0, 'M'], [4.02, 0.08, 4.02, 0, -0.29, 0, 0, 0, 'D']], surf: [{ k: 'f', x: 0, z: 0, hx: 2, hz: 2, y: 0 }] },
+  roof: { n: 'Flat roof', ic: '⬜', cls: 'c', lv: 1, cost: 2, parts: () => [[4, 0.25, 4, 0, -0.125, 0, 0, 0, 'M'], [4.2, 0.22, 0.2, 0, 0.07, 1.95, 0, 0, 'D'], [4.2, 0.22, 0.2, 0, 0.07, -1.95, 0, 0, 'D']], surf: [{ k: 'f', x: 0, z: 0, hx: 2, hz: 2, y: 0 }] },
+  slope: { n: 'Sloped roof', ic: '◿', cls: 'c', lv: 1, cost: 3, parts: () => [[4.4, 0.22, 4.5, 0, 1.0, 0, 0, -Math.atan(0.5), 'D'], [0.2, 2, 4, -2.1, 1.0, 0, 0, 0, 'M'], [0.2, 2, 4, 2.1, 1.0, 0, 0, 0, 'M']], surf: [{ k: 'r', x: 0, z: 0, hx: 2.1, hz: 2, y0: 0, y1: 2 }] },
+  peak: { n: 'Roof peak', ic: '🔺', cls: 'c', lv: 1, cost: 5, parts: () => [[4.4, 0.22, 2.9, 0, 1.0, -1.0, 0, -Math.PI / 4, 'D'], [4.4, 0.22, 2.9, 0, 1.0, 1.0, 0, Math.PI / 4, 'D'], [0.25, 2, 0.25, 0, 1, 0, 0, 0, 'M']], surf: [{ k: 'r', x: 0, z: -1, hx: 2.1, hz: 1, y0: 0, y1: 2 }, { k: 'r', x: 0, z: 1, hx: 2.1, hz: 1, y0: 2, y1: 0 }] },
+  stairs: { n: 'Stairs', ic: '🪜', cls: 'c', rise: 1, cost: 5, parts: () => { const o = []; for (let i = 0; i < 8; i++) { const h = (i + 1) * 0.425; o.push([3.4, h, 0.5, 0, h / 2, -1.75 + i * 0.5 + 0.25, 0, 0, i % 2 ? 'M' : 'L']); } o.push([0.18, 2.0, 4, -1.7, 1.0, 0, 0, 0, 'D'], [0.18, 2.0, 4, 1.7, 1.0, 0, 0, 0, 'D']); return o; }, surf: [{ k: 'r', x: 0, z: 0, hx: 1.7, hz: 2, y0: 0, y1: 3.4 }], col: [{ x: -1.8, z: 0, hx: 0.12, hz: 2, y0: 0, y1: 3.4 }, { x: 1.8, z: 0, hx: 0.12, hz: 2, y0: 0, y1: 3.4 }] },
+  wall: { n: 'Wall', ic: '🧱', cls: 'e', cost: 3, parts: () => [[4, 3.2, 0.3, 0, 1.6, 0, 0, 0, 'M'], [4.05, 0.25, 0.4, 0, 0.1, 0, 0, 0, 'D'], [4.05, 0.2, 0.38, 0, 3.1, 0, 0, 0, 'D']], col: [{ x: 0, z: 0, hx: 2, hz: 0.16, y0: 0, y1: 3.2 }] },
+  door: { n: 'Doorway + door', ic: '🚪', cls: 'e', cost: 3, act: 'door', parts: () => [[1.15, 3.2, 0.3, -1.425, 1.6, 0, 0, 0, 'M'], [1.15, 3.2, 0.3, 1.425, 1.6, 0, 0, 0, 'M'], [1.7, 0.95, 0.3, 0, 2.725, 0, 0, 0, 'M'], [4.05, 0.25, 0.4, 0, 0.1, 0, 0, 0, 'D'], [4.05, 0.2, 0.38, 0, 3.1, 0, 0, 0, 'D']], col: [{ x: -1.425, z: 0, hx: 0.58, hz: 0.16, y0: 0, y1: 3.2 }, { x: 1.425, z: 0, hx: 0.58, hz: 0.16, y0: 0, y1: 3.2 }] },
+  window: { n: 'Window wall', ic: '🪟', cls: 'e', cost: 3, parts: () => [[4, 1.0, 0.3, 0, 0.5, 0, 0, 0, 'M'], [4, 0.9, 0.3, 0, 2.75, 0, 0, 0, 'M'], [1.1, 1.3, 0.3, -1.45, 1.65, 0, 0, 0, 'M'], [1.1, 1.3, 0.3, 1.45, 1.65, 0, 0, 0, 'M'], [4.05, 0.2, 0.38, 0, 3.1, 0, 0, 0, 'D'], [1.82, 0.08, 0.2, 0, 1.04, 0, 0, 0, 'D']], col: [{ x: 0, z: 0, hx: 2, hz: 0.16, y0: 0, y1: 3.2 }], glass: true, extra: { crystal: 1 } },
+  fence: { n: 'Fence', ic: '🏗️', cls: 'e', cost: 1, parts: () => { const o = [[4, 0.12, 0.12, 0, 0.95, 0, 0, 0, 'L'], [4, 0.12, 0.12, 0, 0.5, 0, 0, 0, 'L']]; for (const x of [-1.9, -0.95, 0, 0.95, 1.9]) o.push([0.14, 1.15, 0.14, x, 0.575, 0, 0, 0, 'D']); return o; }, col: [{ x: 0, z: 0, hx: 2, hz: 0.12, y0: 0, y1: 1.15 }] },
+  pillar: { n: 'Pillar', ic: '🏛️', cls: 'p', cost: 2, parts: () => [[0.5, 3.2, 0.5, 0, 1.6, 0, 0, 0, 'D'], [0.7, 0.2, 0.7, 0, 0.1, 0, 0, 0, 'L'], [0.7, 0.2, 0.7, 0, 3.1, 0, 0, 0, 'L']], col: [{ x: 0, z: 0, hx: 0.26, hz: 0.26, y0: 0, y1: 3.2 }] },
+  table: { n: 'Table', ic: '🪑', cls: 'f', fixed: { wood: 4 }, parts: () => { const o = [[1.7, 0.12, 0.95, 0, 0.8, 0, 0, 0, BWC1]]; for (const [x, z] of [[-0.75, -0.38], [0.75, -0.38], [-0.75, 0.38], [0.75, 0.38]]) o.push([0.1, 0.76, 0.1, x, 0.38, z, 0, 0, BWC2]); return o; }, col: [{ x: 0, z: 0, hx: 0.85, hz: 0.48, y0: 0, y1: 0.9 }] },
+  chair: { n: 'Chair', ic: '💺', cls: 'f', fixed: { wood: 2 }, parts: () => { const o = [[0.5, 0.08, 0.5, 0, 0.48, 0, 0, 0, BWC1], [0.5, 0.55, 0.07, 0, 0.78, -0.22, 0, 0, BWC1]]; for (const [x, z] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) o.push([0.06, 0.48, 0.06, x, 0.24, z, 0, 0, BWC2]); return o; }, col: [{ x: 0, z: 0, hx: 0.27, hz: 0.27, y0: 0, y1: 0.5 }] },
+  bed: { n: 'Bed (sleep)', ic: '🛏️', cls: 'f', fixed: { wood: 6 }, act: 'bed', parts: () => [[1.1, 0.4, 2.1, 0, 0.2, 0, 0, 0, BWC2], [1.0, 0.22, 1.95, 0, 0.5, 0, 0, 0, 0xb8445a], [0.8, 0.18, 0.45, 0, 0.7, -0.7, 0, 0, 0xf2f0e8], [1.1, 0.8, 0.12, 0, 0.6, -1.05, 0, 0, BWC1]], col: [{ x: 0, z: 0, hx: 0.56, hz: 1.06, y0: 0, y1: 0.65 }] },
+  chest: { n: 'Storage chest', ic: '📦', cls: 'f', fixed: { wood: 5 }, act: 'chest', parts: () => [[1.1, 0.6, 0.7, 0, 0.3, 0, 0, 0, BWC1], [1.14, 0.22, 0.74, 0, 0.7, 0, 0, 0, BWC2], [0.14, 0.2, 0.06, 0, 0.55, 0.37, 0, 0, 0xe8c04a]], col: [{ x: 0, z: 0, hx: 0.57, hz: 0.37, y0: 0, y1: 0.8 }] },
+  shelf: { n: 'Bookshelf', ic: '📚', cls: 'f', fixed: { wood: 5 }, parts: () => { const o = [[1.6, 2.2, 0.4, 0, 1.1, 0, 0, 0, BWC2]]; for (let i = 0; i < 4; i++) { o.push([1.5, 0.05, 0.38, 0, 0.4 + i * 0.5, 0.02, 0, 0, BWC1]); for (let j = 0; j < 5; j++) o.push([0.18, 0.34, 0.26, -0.6 + j * 0.3, 0.6 + i * 0.5 - 0.1, 0.04, 0, 0, [0xa83a3a, 0x3a6aa8, 0x3a8a4a, 0xc8a040, 0x7a4aa8][(i + j) % 5]]); } return o; }, col: [{ x: 0, z: 0, hx: 0.82, hz: 0.22, y0: 0, y1: 2.2 }] },
+  bench: { n: 'Workbench', ic: '🔨', cls: 'f', fixed: { wood: 8, stone: 2 }, act: 'bench', parts: () => [[1.9, 0.14, 0.9, 0, 0.9, 0, 0, 0, BWC1], [0.12, 0.9, 0.8, -0.85, 0.45, 0, 0, 0, BWC2], [0.12, 0.9, 0.8, 0.85, 0.45, 0, 0, 0, BWC2], [0.5, 0.1, 0.18, -0.4, 1.0, 0.1, 0, 0, 0x8a8c96], [0.12, 0.1, 0.5, 0.4, 1.0, 0, 0, 0, 0x5a6270]], col: [{ x: 0, z: 0, hx: 0.98, hz: 0.48, y0: 0, y1: 1.0 }] },
+  forge: { n: 'Forge (fire)', ic: '⚒️', cls: 'f', fixed: { stone: 10, iron: 3 }, act: 'fire', light: 0xff8a3a, parts: () => [[1.5, 0.9, 1.1, 0, 0.45, 0, 0, 0, 0x6a6c76], [1.1, 0.5, 0.8, 0, 1.15, -0.1, 0, 0, 0x5a5c66], [0.5, 1.4, 0.5, 0, 1.9, -0.3, 0, 0, 0x4a4c56], [0.9, 0.12, 0.5, 0, 0.92, 0.45, 0, 0, 0x2a2a2e]], col: [{ x: 0, z: 0, hx: 0.78, hz: 0.58, y0: 0, y1: 1.5 }] },
+  stove: { n: 'Stove / hearth (fire)', ic: '🍳', cls: 'f', fixed: { stone: 8 }, act: 'fire', light: 0xffa24a, parts: () => [[1.0, 0.95, 0.8, 0, 0.475, 0, 0, 0, 0x7a6a5a], [0.4, 1.5, 0.4, 0.2, 1.7, -0.2, 0, 0, 0x5a4a3a], [0.7, 0.1, 0.5, -0.05, 0.98, 0.1, 0, 0, 0x2a2a2e]], col: [{ x: 0, z: 0, hx: 0.52, hz: 0.42, y0: 0, y1: 1.0 }] },
+  torch: { n: 'Torch', ic: '🔥', cls: 'f', fixed: { wood: 1 }, light: 0xffb050, lamp: true, parts: () => [[0.1, 1.5, 0.1, 0, 0.75, 0, 0, 0, BWC2], [0.22, 0.12, 0.22, 0, 1.52, 0, 0, 0, 0xffa030]], col: [] },
+  lamp: { n: 'Standing lamp', ic: '🏮', cls: 'f', fixed: { wood: 2, crystal: 1 }, light: 0xffe0a0, lamp: true, parts: () => [[0.1, 2.0, 0.1, 0, 1.0, 0, 0, 0, 0x4a4a52], [0.34, 0.4, 0.34, 0, 2.15, 0, 0, 0, 0xffe6a8], [0.5, 0.06, 0.5, 0, 2.38, 0, 0, 0, 0x4a4a52]], col: [{ x: 0, z: 0, hx: 0.12, hz: 0.12, y0: 0, y1: 2.3 }] },
+};
+const BORDER = Object.keys(BPD);
+/* ---------- geometry helpers ---------- */
+const _bt = new THREE.BoxGeometry(1, 1, 1).toNonIndexed(), _bq = new THREE.Quaternion(), _be = new THREE.Euler(), _bm = new THREE.Matrix4(), _bv = new THREE.Vector3(), _bs = new THREE.Vector3(), _bc = new THREE.Color();
+function bMerge(parts, noColor) {   // parts in world space: [w,h,d,wx,wy,wz,yaw,pitch,hex]
+  const n = _bt.attributes.position.count, pos = new Float32Array(parts.length * n * 3), col = new Float32Array(parts.length * n * 3), src = _bt.attributes.position.array; let o = 0;
+  for (const q of parts) {
+    _be.set(q[7] || 0, q[6] || 0, 0, 'YXZ'); _bq.setFromEuler(_be); _bm.compose(_bv.set(q[3], q[4], q[5]), _bq, _bs.set(q[0], q[1], q[2])); _bc.setHex(q[8]);
+    for (let i = 0; i < n; i++) { _bv.set(src[i * 3], src[i * 3 + 1], src[i * 3 + 2]).applyMatrix4(_bm); pos[o] = _bv.x; pos[o + 1] = _bv.y; pos[o + 2] = _bv.z; col[o] = _bc.r; col[o + 1] = _bc.g; col[o + 2] = _bc.b; o += 3; }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeBoundingSphere(); g.userData.own = true; return g;
+}
+const bW = (p, lx, lz) => { const c = Math.cos(p.a), s = Math.sin(p.a); return [p.x + lx * c + lz * s, p.z - lx * s + lz * c]; };
+function bPartsW(p) { const D = BPD[p.t], out = []; for (const q of D.parts(p)) { const w = bW(p, q[3], q[5]); out.push([q[0], q[1], q[2], w[0], p.y + q[4], w[1], (q[6] || 0) + p.a, q[7] || 0, bcol(p, q[8])]); } return out; }
+/* ---------- colliders and floors ---------- */
+function bReg(grid, o, rad) { for (let cx = Math.floor((o.x - rad) / 8); cx <= Math.floor((o.x + rad) / 8); cx++) for (let cz = Math.floor((o.z - rad) / 8); cz <= Math.floor((o.z + rad) / 8); cz++) { const k = cx * 30011 + cz; let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(o); } }
+function bUnreg(grid, o, rad) { for (let cx = Math.floor((o.x - rad) / 8); cx <= Math.floor((o.x + rad) / 8); cx++) for (let cz = Math.floor((o.z - rad) / 8); cz <= Math.floor((o.z + rad) / 8); cz++) { const k = cx * 30011 + cz, a = grid.get(k); if (a) { const i = a.indexOf(o); if (i >= 0) a.splice(i, 1); if (!a.length) grid.delete(k); } } }
+function bColOf(p, c) { const w = bW(p, c.x, c.z); return { x: w[0], z: w[1], hx: c.hx, hz: c.hz, cs: Math.cos(p.a + (c.ry || 0)), sn: Math.sin(p.a + (c.ry || 0)), y0: p.y + c.y0, y1: p.y + c.y1, on: true, p }; }
+function bSurfOf(p, s) { const w = bW(p, s.x, s.z); return { k: s.k, x: w[0], z: w[1], hx: s.hx + 0.03, hz: s.hz + 0.03, cs: Math.cos(p.a + (s.ry || 0)), sn: Math.sin(p.a + (s.ry || 0)), y: p.y + (s.y || 0), y0: p.y + (s.y0 || 0), y1: p.y + (s.y1 || 0), p }; }
+function bcollide(nx, nz) {
+  const l = BLD.cg.get(Math.floor(nx / 8) * 30011 + Math.floor(nz / 8)); if (!l) return [nx, nz]; const R = 0.42;
+  for (let i = 0; i < l.length; i++) {
+    const o = l[i]; if (!o.on || !(BH + 0.55 < o.y1 && BH + 1.75 > o.y0)) continue; const dx = nx - o.x, dz = nz - o.z, lx = dx * o.cs - dz * o.sn, lz = dx * o.sn + dz * o.cs, ex = o.hx + R, ez = o.hz + R;
+    if (Math.abs(lx) < ex && Math.abs(lz) < ez) { let a = lx, b = lz; if (ex - Math.abs(lx) < ez - Math.abs(lz)) a = (lx < 0 ? -1 : 1) * ex; else b = (lz < 0 ? -1 : 1) * ez; nx = o.x + a * o.cs + b * o.sn; nz = o.z - a * o.sn + b * o.cs; }
+  }
+  return [nx, nz];
+}
+function bFloor(x, z, yref) {
+  const l = BLD.sg.get(Math.floor(x / 8) * 30011 + Math.floor(z / 8)); if (!l) return -1e9; let best = -1e9;
+  for (let i = 0; i < l.length; i++) { const s = l[i], dx = x - s.x, dz = z - s.z, lx = dx * s.cs - dz * s.sn, lz = dx * s.sn + dz * s.cs; if (Math.abs(lx) > s.hx || Math.abs(lz) > s.hz) continue; const y = s.k === 'f' ? s.y : s.y0 + (s.y1 - s.y0) * ((lz + s.hz) / (2 * s.hz)); if (y <= yref + BLD.STEP && y > best) best = y; }
+  return best;
+}
+function bBlocked(x, y, z) {   // used by the camera so it does not poke through walls, floors and roofs
+  const l = BLD.cg.get(Math.floor(x / 8) * 30011 + Math.floor(z / 8)); if (l) for (const o of l) { if (!o.on || y < o.y0 || y > o.y1) continue; const dx = x - o.x, dz = z - o.z, lx = dx * o.cs - dz * o.sn, lz = dx * o.sn + dz * o.cs; if (Math.abs(lx) < o.hx + 0.12 && Math.abs(lz) < o.hz + 0.12) return true; }
+  const s = BLD.sg.get(Math.floor(x / 8) * 30011 + Math.floor(z / 8)); if (s) for (const o of s) { if (o.k !== 'f' || y > o.y || y < o.y - 0.4) continue; const dx = x - o.x, dz = z - o.z, lx = dx * o.cs - dz * o.sn, lz = dx * o.sn + dz * o.cs; if (Math.abs(lx) < o.hx && Math.abs(lz) < o.hz) return true; }
+  return false;
+}
+{
+  const _hb = heightAt; heightAt = function (x, z) { const h = _hb(x, z); if (!BLD.sg.size || DG_ON) return h; const f = bFloor(x, z, BH); return f > h ? f : h; };
+  const _cb = collide; collide = function (nx, nz) { const r = _cb(nx, nz); return BLD.cg.size && !DG_ON ? bcollide(r[0], r[1]) : r; };
+  const _bb = blockedByBuilding; blockedByBuilding = function (x, y, z) { return _bb(x, y, z) || (BLD.cg.size > 0 && bBlocked(x, y, z)); };
+  const _up = updatePlayer; updatePlayer = function (dt) { BH = P.y; _up(dt); };
+}
+/* ---------- adding and removing pieces ---------- */
+function bCellKey(p) { return p.own ? 'S:' + p.own : Math.floor(p.x / BLD.CELL) + ',' + Math.floor(p.z / BLD.CELL); }
+function bAdd(p) {
+  const D = BPD[p.t]; p.id = BLD.uid++; p.col = []; p.sf = []; BLD.pieces.push(p);
+  for (const c of (typeof D.col === 'function' ? D.col(p) : D.col || [])) { const o = bColOf(p, c); p.col.push(o); bReg(BLD.cg, o, Math.hypot(o.hx, o.hz) + 0.6); }
+  for (const s of (typeof D.surf === 'function' ? D.surf(p) : D.surf || [])) { const o = bSurfOf(p, s); p.sf.push(o); bReg(BLD.sg, o, Math.hypot(o.hx, o.hz) + 0.3); }
+  if (p.t === 'door') bDoor(p);
+  if (D.glass) bGlass(p);
+  if (D.light) { const w = bW(p, 0, 0); p.src = { x: w[0], y: p.y + (D.lamp ? 2.0 : 1.5), z: w[1], color: D.light, intensity: D.lamp ? 1.5 : 2.2, kind: D.lamp ? 'lamp' : 'fire' }; sources.push(p.src); nearCache = null; }
+  if (p.slot) BLD.slots.set(p.slot, p); if (p.t === 'found') BLD.found.set(Math.floor(p.x / 4) + ',' + Math.floor(p.z / 4), p.y);
+  const k = bCellKey(p); let c = BLD.cells.get(k); if (!c) BLD.cells.set(k, c = { k, mesh: null, ps: new Set(), x: p.x, z: p.z }); c.ps.add(p); BLD.dirty.add(k);
+}
+function bRemove(p) {
+  const i = BLD.pieces.indexOf(p); if (i >= 0) BLD.pieces.splice(i, 1);
+  for (const o of p.col) bUnreg(BLD.cg, o, Math.hypot(o.hx, o.hz) + 0.6); for (const o of p.sf) bUnreg(BLD.sg, o, Math.hypot(o.hx, o.hz) + 0.3);
+  if (p.dg) { scene.remove(p.dg); if (p.dc) { bUnreg(BLD.cg, p.dc, 2); } } if (p.gl) scene.remove(p.gl); if (p.src) { const j = sources.indexOf(p.src); if (j >= 0) sources.splice(j, 1); nearCache = null; }
+  if (p.slot) BLD.slots.delete(p.slot); if (p.t === 'found') BLD.found.delete(Math.floor(p.x / 4) + ',' + Math.floor(p.z / 4));
+  const k = bCellKey(p), c = BLD.cells.get(k); if (c) { c.ps.delete(p); BLD.dirty.add(k); }
+}
+function bDoor(p) {
+  const hinge = bW(p, -0.82, 0), g = new THREE.Group(), leaf = new THREE.Mesh(_bt, new THREE.MeshStandardMaterial({ color: shadeC(BMATS[p.m].c, 0.85), roughness: 0.8 })); leaf.scale.set(1.62, 2.4, 0.12); leaf.position.set(0.82, 1.2, 0); leaf.castShadow = true; const knob = new THREE.Mesh(_bt, new THREE.MeshStandardMaterial({ color: 0xe8c04a })); knob.scale.set(0.1, 0.1, 0.2); knob.position.set(1.45, 1.1, 0); g.add(leaf, knob);
+  g.position.set(hinge[0], p.y, hinge[1]); g.rotation.y = p.a; p.dg = g; p.open = !!p.open; p.da = p.open ? 1 : 0; scene.add(g); const c = bW(p, 0, 0); p.dc = { x: c[0], z: c[1], hx: 0.82, hz: 0.12, cs: Math.cos(p.a), sn: Math.sin(p.a), y0: p.y, y1: p.y + 2.4, on: !p.open, p }; bReg(BLD.cg, p.dc, 2); g.rotation.y = p.a - p.da * 1.45;
+}
+function bGlass(p) { const w = bW(p, 0, 0), m = new THREE.Mesh(_bt, new THREE.MeshStandardMaterial({ color: 0x9ad8ff, transparent: true, opacity: 0.35, roughness: 0.1 })); m.scale.set(1.84, 1.3, 0.05); m.position.set(w[0], p.y + 1.65, w[1]); m.rotation.y = p.a; scene.add(m); p.gl = m; }
+const bFurn = { sign: 1 };
+function bRebuild(k) {
+  const c = BLD.cells.get(k); if (!c) return; if (c.mesh) { scene.remove(c.mesh); c.mesh.geometry.dispose(); c.mesh = null; } if (!c.ps.size) { BLD.cells.delete(k); return; }
+  const parts = []; for (const p of c.ps) for (const q of bPartsW(p)) parts.push(q); const m = new THREE.Mesh(bMerge(parts), VC_MAT); m.castShadow = true; m.receiveShadow = true; m.frustumCulled = true; scene.add(m); c.mesh = m;
+}
+/* ---------- saving ---------- */
+function bSave() { if (!BLD.save) return; BLD.save = 0; try { localStorage.setItem('lumen_build', JSON.stringify(BLD.pieces.filter(p => !p.own).map(p => [p.t, p.m, Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100, Math.round(p.z * 100) / 100, Math.round(p.a * 1000) / 1000, p.st || 0]))); } catch (e) { /* ignore */ } }
+function bLoad() { try { const d = JSON.parse(localStorage.getItem('lumen_build') || '[]'); for (const r of d) { if (!BPD[r[0]]) continue; const p = { t: r[0], m: r[1], x: r[2], y: r[3], z: r[4], a: r[5], st: r[6] || null }; p.slot = bSlot(p); bAdd(p); } } catch (e) { /* ignore */ } }
+/* ---------- where a piece goes ---------- */
+const bSnap = (v, g, o) => Math.round((v - (o || 0)) / g) * g + (o || 0);
+function bTerrainTop(cx, cz) { let m = -1e9; for (const [dx, dz] of [[0, 0], [1.8, 1.8], [-1.8, 1.8], [1.8, -1.8], [-1.8, -1.8]]) m = Math.max(m, heightRaw(cx + dx, cz + dz)); return m; }
+function bBaseAt(x, z, cls, a) {   // the height of the ground floor under this spot: a foundation if there is one, else the ground
+  let cells = []; const ix = Math.floor(x / 4), iz = Math.floor(z / 4);
+  if (cls === 'c' || cls === 'f') cells = [[ix, iz]]; else if (cls === 'p') { const gx = Math.round(x / 4), gz = Math.round(z / 4); cells = [[gx - 1, gz - 1], [gx, gz - 1], [gx - 1, gz], [gx, gz]]; } else { const ev = Math.abs(Math.round(a / (Math.PI / 2))) % 2 === 0; if (ev) { const gz = Math.round(z / 4); cells = [[ix, gz - 1], [ix, gz]]; } else { const gx = Math.round(x / 4); cells = [[gx - 1, Math.floor(z / 4)], [gx, Math.floor(z / 4)]]; } }
+  let best = -1e9; for (const [cx, cz] of cells) { const f = BLD.found.get(cx + ',' + cz); if (f !== undefined && f > best) best = f; } if (best > -1e8) return best; return Math.round(bTerrainTop(x, z) * 10) / 10 + 0.2;
+}
+function bPlan(t, mat, L, rot, ax, az) {
+  const D = BPD[t], a = rot * Math.PI / 2; let x, z;
+  if (D.cls === 'c') { x = Math.floor(ax / 4) * 4 + 2; z = Math.floor(az / 4) * 4 + 2; } else if (D.cls === 'p') { x = Math.round(ax / 4) * 4; z = Math.round(az / 4) * 4; }
+  else if (D.cls === 'e') { if (rot % 2 === 0) { x = Math.floor(ax / 4) * 4 + 2; z = Math.round(az / 4) * 4; } else { x = Math.round(ax / 4) * 4; z = Math.floor(az / 4) * 4 + 2; } } else { x = Math.round(ax * 2) / 2; z = Math.round(az * 2) / 2; }
+  let y;
+  if (D.cls === 'f') { const f = bFloor(x, z, P.y + 1.2); y = Math.max(f > -1e8 ? f : -1e9, _hb0(x, z)); }
+  else if (t === 'found') y = Math.round(bTerrainTop(x, z) * 10) / 10 + 0.2;
+  else y = bBaseAt(x, z, D.cls, a) + (L + (D.lv || 0)) * BLD.LH;
+  const p = { t, m: mat, x, y, z, a }; p.slot = bSlot(p); return p;
+}
+const _hb0 = (x, z) => heightRaw(x, z);
+function bSlot(p) { const D = BPD[p.t], r1 = v => Math.round(v * 10); if (D.cls === 'c') return 'c|' + r1(p.x) + '|' + r1(p.z) + '|' + Math.round(p.y * 2); if (D.cls === 'p') return 'p|' + r1(p.x) + '|' + r1(p.z) + '|' + Math.round(p.y * 2); if (D.cls === 'e') return 'e|' + r1(p.x) + '|' + r1(p.z) + '|' + Math.round(p.y * 2) + '|' + (Math.round(p.a / (Math.PI / 2)) % 2); return 'f|' + Math.round(p.x * 2) + '|' + Math.round(p.z * 2) + '|' + p.t; }
+function bCost(t, mat) { const D = BPD[t], c = {}; if (D.fixed) Object.assign(c, D.fixed); else c[BMATS[mat].it] = D.cost; if (D.extra) for (const k in D.extra) c[k] = (c[k] || 0) + D.extra[k]; return c; }
+const bCan = c => Object.keys(c).every(k => (inv[k] || 0) >= c[k]);
+/* ---------- build mode ---------- */
+function bGhost(plan, ok) {
+  const key = plan.t + '|' + plan.m; if (BLD.ghostKey !== key) { if (BLD.ghost) { scene.remove(BLD.ghost); BLD.ghost.geometry.dispose(); } const p0 = { t: plan.t, m: plan.m, x: 0, y: 0, z: 0, a: 0 }, parts = bPartsW(p0).map(q => { q[8] = 0xffffff; return q; }); const g = bMerge(parts), m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthWrite: false })); m.renderOrder = 9; scene.add(m); BLD.ghost = m; BLD.ghostKey = key; BLD.gcol = null; }
+  const m = BLD.ghost; m.visible = true; m.position.set(plan.x, plan.y, plan.z); m.rotation.y = plan.a; const col = ok ? 0x7dff9a : 0xff6a5a; if (BLD.gcol !== col) { const arr = m.geometry.attributes.color.array, c = new THREE.Color(col); for (let i = 0; i < arr.length; i += 3) { arr[i] = c.r; arr[i + 1] = c.g; arr[i + 2] = c.b; } m.geometry.attributes.color.needsUpdate = true; BLD.gcol = col; }
+}
+function bAim() { const d = 6.5, a = cam.yaw; return [P.x - Math.sin(a) * d, P.z - Math.cos(a) * d]; }
+function bPlace() {
+  if (DG_ON) { toast('You cannot build here.'); return; } const plan = bCurPlan(); if (!plan || !plan.ok) { toast(plan && plan.why || 'Cannot build there.'); sfx('no'); return; }
+  const c = bCost(plan.t, plan.m); for (const k in c) inv[k] -= c[k]; const p = { t: plan.t, m: plan.m, x: plan.x, y: plan.y, z: plan.z, a: plan.a, slot: plan.slot }; if (BPD[p.t].act === 'chest') p.st = {}; bAdd(p); BLD.save = 1; refreshInv(); sfx('build'); fxBurst && fxBurst(p.x, p.y + 0.5, p.z, BMATS[p.m].c, 10, 3, 1);
+}
+function bCurPlan() {
+  const t = BORDER[BLD.sel], [ax, az] = bAim(), plan = bPlan(t, BLD.mat, BLD.L, BLD.rot, ax, az), D = BPD[t]; plan.ok = true; plan.why = '';
+  if (BLD.pieces.length >= BLD.max) { plan.ok = false; plan.why = 'Build limit reached.'; }
+  else if (BLD.slots.has(plan.slot)) { plan.ok = false; plan.why = 'Something is already there.'; }
+  else if (!bCan(bCost(t, BLD.mat))) { plan.ok = false; plan.why = 'You need more materials.'; }
+  else if (heightRaw(plan.x, plan.z) < -0.2 && D.cls !== 'f') { plan.ok = false; plan.why = 'You cannot build in deep water.'; }
+  return plan;
+}
+function bRemoveAim() {
+  const [ax, az] = bAim(); let best = null, bd = 1e9; for (const p of BLD.pieces) { if (p.own) continue; const d = Math.hypot(p.x - ax, p.z - az) + Math.abs(p.y + 1.2 - (P.y + 1.4)) * 0.6; if (d < bd) { bd = d; best = p; } }
+  if (!best || bd > 4.2) { toast('Nothing to remove there.'); return; } const c = bCost(best.t, best.m); for (const k in c) giveItem(k, Math.max(1, Math.floor(c[k] * 0.7)), true); if (best.st) for (const k in best.st) giveItem(k, best.st[k], true); bRemove(best); BLD.save = 1; refreshInv(); sfx('done');
+}
+function bUI() {
+  let el = $('bmk'); if (!el) { el = document.createElement('div'); el.id = 'bmk'; el.setAttribute('data-kbd', '1'); document.body.appendChild(el); const st = document.createElement('style'); st.textContent = '#bmk{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;z-index:35;max-width:min(980px,98vw);background:rgba(10,14,22,.9);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:8px 10px;color:#fff;font:12px "Segoe UI",system-ui,sans-serif;backdrop-filter:blur(8px)}#bmk .bp{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px}#bmk .bi{flex:0 0 auto;min-width:62px;padding:5px 6px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);cursor:pointer;text-align:center;color:#fff}#bmk .bi.on{background:#f4b95a;color:#1a1208;border-color:#f4b95a}#bmk .bi b{display:block;font-size:17px}#bmk .bi small{font-size:10px;display:block;line-height:1.15}#bmk .bm{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:5px}#bmk .bs{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0}#bmk .bs.on{border-color:#fff;box-shadow:0 0 0 2px #f4b95a}#bmk button.bb{padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font-weight:600}#bmk .bh{color:#9eaabb;font-size:11px;margin-top:4px}#bmk .no{color:#ff9a8a}'; document.head.appendChild(st); el.addEventListener('click', e => { const b = e.target.closest('[data-bi],[data-bm],[data-ba]'); if (!b) return; if (b.dataset.bi !== undefined) BLD.sel = +b.dataset.bi; else if (b.dataset.bm !== undefined) BLD.mat = +b.dataset.bm; else { const a = b.dataset.ba; if (a === 'rot') BLD.rot = (BLD.rot + 1) % 4; else if (a === 'up') BLD.L = Math.min(6, BLD.L + 1); else if (a === 'dn') BLD.L = Math.max(0, BLD.L - 1); else if (a === 'put') bPlace(); else if (a === 'del') bRemoveAim(); else if (a === 'exit') bMode(false); } bRender(); e.stopPropagation(); }); el.addEventListener('keydown', e => e.stopPropagation()); }
+  bRender();
+}
+function bRender() {
+  const el = $('bmk'); if (!el) return; const pb = el.querySelector('.bp'), sl = pb ? pb.scrollLeft : 0; const t = BORDER[BLD.sel], D = BPD[t], c = bCost(t, BLD.mat);
+  el.innerHTML = '<div class="bp">' + BORDER.map((k, i) => '<div class="bi ' + (i === BLD.sel ? 'on' : '') + '" data-bi="' + i + '"><b>' + BPD[k].ic + '</b><small>' + BPD[k].n + '</small></div>').join('') + '</div><div class="bm">' + (D.fixed ? '' : BMATS.map((m, i) => '<button class="bs ' + (i === BLD.mat ? 'on' : '') + '" data-bm="' + i + '" title="' + m.n + '" style="background:#' + m.c.toString(16).padStart(6, '0') + '"></button>').join('') + '<span>' + BMATS[BLD.mat].n + '</span>') + '<span style="margin-left:6px">Cost: ' + Object.keys(c).map(k => '<span class="' + ((inv[k] || 0) >= c[k] ? '' : 'no') + '">' + (ITEMDB[k] ? ITEMDB[k].ic : '') + ' ' + (inv[k] || 0) + '/' + c[k] + '</span>').join(' ') + '</span><span style="flex:1"></span><button class="bb" data-ba="rot">⟳ Rotate (R)</button><button class="bb" data-ba="dn">▼ Level ' + BLD.L + '</button><button class="bb" data-ba="up">▲</button><button class="bb" data-ba="put">✔ Place</button><button class="bb" data-ba="del">✖ Remove</button><button class="bb" data-ba="exit">Done</button></div><div class="bh">Click / F place · Right-click / X remove · R rotate · Q E level down/up · wheel or [ ] change piece · , . change material · = or Esc leave. Build on foundations; stairs rise one level; walk through doorways and press E on doors.</div>';
+  const nb = el.querySelector('.bp'); if (nb) nb.scrollLeft = sl;
+}
+function bMode(v) {
+  BLD.on = v === undefined ? !BLD.on : v; if (BLD.on) { if (DG_ON) { BLD.on = false; toast('You cannot build indoors in a dungeon.'); return; } bUI(); $('bmk').style.display = 'block'; toast('🔨 Build mode: pick a piece below, aim ahead of you and click to place.'); } else { const e = $('bmk'); if (e) e.style.display = 'none'; if (BLD.ghost) BLD.ghost.visible = false; bSave(); }
+}
+window.addEventListener('keydown', e => {
+  if (!playing || e.repeat && e.code !== 'KeyR') { if (!BLD.on) return; }
+  if (e.code === 'Equal' || e.code === 'NumpadAdd') { if (playing && (!uiOpen || BLD.on)) { e.preventDefault(); e.stopImmediatePropagation(); bMode(); } return; }
+  if (!BLD.on || !playing) return; const c = e.code, st = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+  if (c === 'Escape') { st(); bMode(false); } else if (c === 'KeyR') { st(); BLD.rot = (BLD.rot + 1) % 4; bRender(); } else if (c === 'KeyQ') { st(); BLD.L = Math.max(0, BLD.L - 1); bRender(); } else if (c === 'KeyE') { st(); BLD.L = Math.min(6, BLD.L + 1); bRender(); }
+  else if (c === 'KeyF') { st(); bPlace(); bRender(); } else if (c === 'KeyX') { st(); bRemoveAim(); bRender(); } else if (c === 'BracketLeft') { st(); BLD.sel = (BLD.sel + BORDER.length - 1) % BORDER.length; bRender(); } else if (c === 'BracketRight') { st(); BLD.sel = (BLD.sel + 1) % BORDER.length; bRender(); } else if (c === 'Comma') { st(); BLD.mat = (BLD.mat + BMATS.length - 1) % BMATS.length; bRender(); } else if (c === 'Period') { st(); BLD.mat = (BLD.mat + 1) % BMATS.length; bRender(); }
+}, true);
+window.addEventListener('mousedown', e => { if (!BLD.on || !playing || e.target.closest && e.target.closest('#bmk')) return; if (e.button === 0) { e.preventDefault(); e.stopImmediatePropagation(); bPlace(); bRender(); } else if (e.button === 2) { e.preventDefault(); e.stopImmediatePropagation(); bRemoveAim(); bRender(); } }, true);
+window.addEventListener('wheel', e => { if (!BLD.on || !playing || e.target.closest && e.target.closest('#bmk')) return; e.preventDefault(); e.stopImmediatePropagation(); BLD.sel = (BLD.sel + (e.deltaY > 0 ? 1 : BORDER.length - 1)) % BORDER.length; bRender(); }, { capture: true, passive: false });
+window.addEventListener('contextmenu', e => { if (BLD.on) e.preventDefault(); }, true);
+/* ---------- things you can use ---------- */
+function bNearAct() { let best = null, bd = 3.2; for (const p of BLD.pieces) { const D = BPD[p.t]; if (!D.act || D.act === 'fire') continue; const dd = Math.hypot(p.x - P.x, p.z - P.z); if (dd < bd && Math.abs(p.y - P.y) < 3) { bd = dd; best = p; } } return best; }
+function bUse(p) {
+  const a = BPD[p.t].act;
+  if (a === 'door') { p.open = !p.open; p.dc.on = !p.open; sfx('done'); nz && nz(0.16, 'bandpass', 300, 180, 0.12, 1); }
+  else if (a === 'bed') { const h = gameHour; if (h > 6.5 && h < 19) { toast('🛏 You rest for a while, but it is not yet night.'); P.hp = P.maxhp; return; } gameHour = 7; if (h >= 19) dayNum++; P.hp = P.maxhp; P.st = 100; P.warm = 100; if (typeof saveGame === 'function') saveGame(true); toast('🛏 You sleep soundly and wake at dawn, fully rested.'); sfx('done'); JF.flash = Math.max(JF.flash, 0.5); }
+  else if (a === 'bench') { toast('🔨 You lay out your tools at the workbench.'); openPanel('inv'); }
+  else if (a === 'chest') bChest(p);
+}
+function bChest(p) {
+  const GRP = { materials: ['material', 'gem', 'herb'], food: ['food', 'fruit'], gear: ['weapon', 'armor', 'charm', 'relic', 'tool'], potions: ['potion', 'scroll', 'book'], other: ['misc'] };
+  openRD(() => {
+    const st = p.st || (p.st = {}), keys = Object.keys(st).filter(k => st[k] > 0 && ITEMDB[k]), n = keys.reduce((a, k) => a + st[k], 0);
+    const dep = (label, cats) => ({ t: '⬇ Store all ' + label, fn: () => { let m = 0; for (const k of Object.keys(inv)) if (inv[k] > 0 && ITEMDB[k] && cats.includes(ITEMDB[k].cat) && k !== 'coin' && !Object.values(EQUIP).includes(k)) { st[k] = (st[k] || 0) + inv[k]; m += inv[k]; inv[k] = 0; } refreshInv(); BLD.save = 1; toast(m ? '📦 Stored ' + m + ' items.' : 'Nothing to store.'); return true; } });
+    return { title: 'Storage chest', ic: '📦', sub: n + ' items stored', text: keys.length ? 'Choose what to take out.' : 'The chest is empty. Store your things here, safe at home.', btns: [].concat(keys.slice(0, 24).map(k => ({ t: '⬆ ' + ITEMDB[k].ic + ' ' + ITEMDB[k].name + ' × ' + st[k], fn: () => { giveItem(k, st[k], true); delete st[k]; refreshInv(); BLD.save = 1; return true; } })), [dep('materials', GRP.materials), dep('food', GRP.food), dep('gear', GRP.gear), dep('potions, scrolls and books', GRP.potions), { t: 'Close', fn: () => false }]) };
+  });
+}
+window.addEventListener('keydown', e => { if (e.code !== 'KeyE' || e.repeat || !playing || uiOpen || BLD.on) return; const p = bNearAct(); if (p) { e.preventDefault(); e.stopImmediatePropagation(); bUse(p); } }, true);
+/* ---------- the loop ---------- */
+{
+  const pr = document.createElement('div'); pr.id = 'bprompt'; pr.style.cssText = 'position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:30;padding:7px 14px;border-radius:999px;background:rgba(13,17,26,.85);color:#fff;font:600 13px "Segoe UI",system-ui,sans-serif;display:none;pointer-events:none'; document.body.appendChild(pr); BLD.prompt = pr;
+  const _ub = updateDungeons; updateDungeons = function (dt) {
+    _ub(dt); try {
+      if (!playing) return; let n = 0; for (const k of BLD.dirty) { bRebuild(k); BLD.dirty.delete(k); if (++n >= 3) break; }
+      for (const c of BLD.cells.values()) if (c.mesh) { const v = Math.hypot(c.x - P.x, c.z - P.z) < 260 + (c.k[0] === 'S' ? 120 : 0); if (c.mesh.visible !== v) c.mesh.visible = v; }
+      for (const p of BLD.pieces) if (p.dg) { const tgt = p.open ? 1 : 0; if (p.da !== tgt) { p.da += Math.sign(tgt - p.da) * Math.min(Math.abs(tgt - p.da), dt * 4); p.dg.rotation.y = p.a - p.da * 1.45; } }
+      if (BLD.on) { const plan = bCurPlan(); bGhost(plan, plan.ok); if (!plan.ok && plan.why && !BLD.why) { BLD.why = 1; } }
+      if (BLD.save) { BLD.st = (BLD.st || 0) - dt; if (BLD.st <= 0) { BLD.st = 4; bSave(); } }
+      const near = !BLD.on && !uiOpen && !DG_ON ? bNearAct() : null; if (near) { const a = BPD[near.t].act; BLD.prompt.textContent = 'E — ' + (a === 'door' ? (near.open ? 'Close the door' : 'Open the door') : a === 'bed' ? 'Sleep in the bed' : a === 'chest' ? 'Open the chest' : 'Use the workbench'); BLD.prompt.style.display = 'block'; } else BLD.prompt.style.display = 'none';
+    } catch (e) { if (!window.__bderr) { window.__bderr = 1; console.error('build', e); } }
+  };
+}
+setTimeout(bLoad, 600);
+window.addEventListener('pagehide', () => { try { BLD.save = 1; bSave(); } catch (e) { /* ignore */ } });
+{
+  const b = document.createElement('button'); b.id = 'buildchip'; b.textContent = '🔨'; b.title = 'Build (=)'; b.style.cssText = 'position:fixed;left:14px;bottom:472px;z-index:30;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(13,17,26,.78);color:#fff;font-size:18px;cursor:pointer;backdrop-filter:blur(6px);display:none';
+  b.addEventListener('click', e => { e.stopPropagation(); if (playing && !uiOpen) bMode(); }); document.body.appendChild(b); setInterval(() => { b.style.display = playing && !uiOpen && !DG_ON && !PHOTO.on && !BLD.on ? 'block' : 'none'; b.style.boxShadow = BLD.pieces.length ? '0 0 8px #f4b95a' : ''; }, 700);
+}
+Object.assign(WHISPER, { build: () => bMode(true) });
+Object.assign(window.__lumen, { bcollide, bFloor, setBH: v => { BH = v; }, BLD, BPD, bAdd, bRemove, bMerge, bPartsW, bMode, bCurPlan, bPlace });
+/* ============================== WALK-IN BUILDINGS: towers you can climb from the inside, and a cabin and beacon tower you can really live in ============================== */
+const LHT = BLD.LH;
+BPD.spiral = {
+  n: 'Spiral stair', cls: 'x',
+  parts: p => {
+    const o = [], C = [[-3, 3], [-3, -3], [3, -3], [3, 3]], sl = LHT / 4 / 6; for (let l = 0; l < p.n; l++) for (let s = 0; s < 4; s++) {
+      const A = C[s], B = C[(s + 1) % 4], h0 = (l * 4 + s) * LHT / 4, mx = (A[0] + B[0]) / 2, mz = (A[1] + B[1]) / 2, ry = Math.atan2(B[0] - A[0], B[1] - A[1]);
+      o.push([1.7, 0.22, 6.3, mx, h0 + LHT / 8 - 0.11, mz, ry, -Math.atan(sl), 'M'], [0.14, 0.6, 6.3, mx + Math.cos(ry) * 0.78 * (s === 1 || s === 3 ? 1 : 1), h0 + LHT / 8 - 0.2, mz - Math.sin(ry) * 0.78, ry, -Math.atan(sl), 'D']);
+    }
+    return o;
+  },
+  surf: p => { const o = [], C = [[-3, 3], [-3, -3], [3, -3], [3, 3]]; for (let l = 0; l < p.n; l++) for (let s = 0; s < 4; s++) { const A = C[s], B = C[(s + 1) % 4], h0 = (l * 4 + s) * LHT / 4, h1 = h0 + LHT / 4, e = 0.3 * (LHT / 4 / 6); o.push({ k: 'r', x: (A[0] + B[0]) / 2, z: (A[1] + B[1]) / 2, hx: 0.9, hz: 3.3, y0: h0 - e, y1: h1 + e, ry: Math.atan2(B[0] - A[0], B[1] - A[1]) }); } return o; },
+};
+BPD.pyr = { n: 'Pointed roof', cls: 'x', parts: p => { const o = [], H = p.h || 6, run = 4.3, ang = Math.atan(H / run), len = Math.hypot(H, run) + 0.3; for (let k = 0; k < 4; k++) o.push([9, 0.26, len, 0, H / 2, run / 2, k * Math.PI / 2, ang, 'D']); o.push([0.5, 0.6, 0.5, 0, H + 0.1, 0, 0, 0, 'L']); return o; } };
+function bStruct(owner, cx, cz, a0, base, items) {
+  const c = Math.cos(a0), s = Math.sin(a0); for (const it of items) { const [t, m, lx, ly, lz, la, ex] = it, p = Object.assign({ t, m, x: cx + lx * c + lz * s, y: base + ly, z: cz - lx * s + lz * c, a: a0 + (la || 0), own: owner }, ex || {}); bAdd(p); }
+}
+function bFree(owner) { for (const p of BLD.pieces.slice()) if (p.own === owner) bRemove(p); }
+function bBase(cx, cz, r) { let m = -1e9; for (let dx = -r; dx <= r; dx += r / 2) for (let dz = -r; dz <= r; dz += r / 2) m = Math.max(m, heightRaw(cx + dx, cz + dz)); return Math.round(m * 10) / 10 + 0.3; }
+const SIDES = [[0, 4, 0, [-2, 2]], [0, -4, 0, [-2, 2]], [4, 0, Math.PI / 2, [-2, 2]], [-4, 0, Math.PI / 2, [-2, 2]]];   // south, north, east, west
+function towerItems(style, n, seed) {
+  const it = [], r = mulberry(seed), ruin = style === 'ruin', wiz = style === 'wizard', wm = style === 'watch' ? 0 : style === 'wizard' ? 7 : style === 'ruin' ? 2 : 2, fm = style === 'watch' ? 2 : style === 'wizard' ? 6 : 2, levels = n + (wiz ? 1 : 0);
+  for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push(['found', fm, x, 0, z, 0]);
+  for (let L = 0; L < levels; L++) SIDES.forEach(([sx, sz, a, offs], si) => offs.forEach((o, oi) => {
+    const lx = a ? sx : o, lz = a ? o : sz; let t = 'wall'; if (L === 0 && si === 0 && oi === 1) t = 'door'; else if (!ruin && ((L + si + oi) % 2 === 0) && !(L === 0 && si === 0)) t = 'window'; if (ruin && r() < (0.12 + L * 0.5)) return; if (ruin && L === 0 && si === 0 && oi === 1) t = 'door';
+    it.push([t, wm, lx, L * LHT, lz, a]);
+  }));
+  it.push(['spiral', wm === 7 ? 7 : fm, 0, 0, 0, 0, { n }]);
+  const top = n * LHT; if (!ruin) { for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push([wiz ? 'floor' : 'roof', fm, x, wiz ? top : top, z, 0]); }
+  if (style === 'watch') SIDES.forEach(([sx, sz, a, offs]) => offs.forEach(o => it.push(['fence', 0, a ? sx : o, top, a ? o : sz, a])));
+  if (wiz) { for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push(['roof', fm, x, (n + 1) * LHT, z, 0]); it.push(['pyr', 7, 0, (n + 1) * LHT + 0.2, 0, 0, { h: 6.5 }]); }
+  if (style === 'beacon') { SIDES.forEach(([sx, sz, a, offs]) => offs.forEach(o => it.push(['fence', 2, a ? sx : o, top, a ? o : sz, a]))); it.push(['torch', 0, -3, top, -3, 0], ['torch', 0, 3, top, -3, 0], ['torch', 0, -3, top, 3, 0], ['torch', 0, 3, top, 3, 0]); }
+  if (wiz) { it.push(['table', 0, 0, 0, 0, 0], ['chair', 0, -1.2, 0, 0.4, Math.PI / 2], ['chair', 0, 1.2, 0, 0.4, -Math.PI / 2], ['shelf', 0, 0, 0, -3.55, 0], ['lamp', 0, -1.6, 0, -2.2, 0], ['bed', 0, 2.3, top, -2.4, 0], ['shelf', 0, -2.6, top, -3.55, 0], ['table', 0, 1.2, top, 0.4, 0], ['lamp', 0, -2.6, top, 2.4, 0]); }
+  if (style === 'watch') it.push(['torch', 0, -3.2, top, -3.2, 0], ['torch', 0, 3.2, top, 3.2, 0]);
+  return it;
+}
+function cabinItems() {
+  const it = []; for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push(['found', 2, x, 0, z, 0]);
+  SIDES.forEach(([sx, sz, a, offs], si) => offs.forEach((o, oi) => { const lx = a ? sx : o, lz = a ? o : sz; let t = si === 0 && oi === 1 ? 'door' : (si === 0 && oi === 0) || (si === 2 && oi === 0) || (si === 3 && oi === 1) || (si === 1 && oi === 0) ? 'window' : 'wall'; it.push([t, 0, lx, 0, lz, a]); }));
+  for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push(['peak', 0, x, LHT, z, 0]);
+  it.push(['bed', 0, -2.7, 0, -2.6, 0], ['table', 0, 0.6, 0, -1.3, 0], ['chair', 0, -0.6, 0, -0.4, Math.PI / 2], ['chair', 0, 1.8, 0, -0.4, -Math.PI / 2], ['stove', 0, 3.1, 0, -3.1, 0], ['lamp', 0, -3.1, 0, 2.7, 0], ['shelf', 0, 0.2, 0, -3.55, 0]);
+  return it;
+}
+/* ---------- the towers of the wild ---------- */
+function lmTowerBuild(E, style, n) {
+  const base = bBase(E.x, E.z, 3.6), owner = 'lm:' + E.id, seed = Math.round(Math.abs(E.x * 7 + E.z * 13)) + 11;
+  bStruct(owner, E.x, E.z, 0, base, towerItems(style, n, seed)); E.towerTop = base + n * LHT; E.base = base; E.style = style;
+  if (style === 'wizard' || style === 'ruin') { const old = BH; BH = base + 0.5; try { lmChest(E, E.x + (style === 'ruin' ? 2.2 : -2.4), E.z + (style === 'ruin' ? 2.2 : 2.2), style === 'wizard' ? 3 : 2, 'lm:' + E.id); } finally { BH = old; } }
+  if (style === 'wizard') { const src = { x: E.x, y: base + (n + 1) * LHT + 1, z: E.z, color: 0xa88aff, intensity: 2.4, kind: 'fire' }; sources.push(src); E.src = src; }
+  if (style === 'watch') { const src = { x: E.x, y: base + n * LHT + 2.2, z: E.z, color: 0xffc46b, intensity: 1.6, kind: 'lamp' }; sources.push(src); E.src = src; }
+}
+LMK.watchtower.build = (E, p) => lmTowerBuild(E, 'watch', 3);
+LMK.wizardtower.build = (E, p) => lmTowerBuild(E, 'wizard', 4);
+LMK.ruinedtower.build = (E, p) => lmTowerBuild(E, 'ruin', 2);
+{ const _ld = lmDrop; lmDrop = function (E) { bFree('lm:' + E.id); if (E.src) { const i = sources.indexOf(E.src); if (i >= 0) sources.splice(i, 1); E.src = null; nearCache = null; } _ld(E); }; }
+/* the view from a watchtower still shows you the land, now when you climb to the top yourself */
+setInterval(() => { if (!playing || DG_ON) return; for (const E of LM) { if (E.kind !== 'watchtower' || !E.built || !E.towerTop) continue; if (Math.hypot(E.x - P.x, E.z - P.z) < 4.6 && P.y > E.towerTop - 1.2) { if (E.seen && elapsed - E.seen < 120) continue; E.seen = elapsed; const n = lmReveal(E.x, E.z, 1100); toast('🔭 From the top you can see for miles' + (n ? ' (' + n + ' new map tiles)' : '.')); sfx('done'); const id = 'wt:' + Math.round(E.x); if (n > 8 && !LMS.cd[id]) { LMS.cd[id] = dayNum; lmSave(); addXp('explore', 30); } } } }, 700);
+/* ---------- the buildable cabin and beacon: now real, walk-in buildings ---------- */
+{
+  const _pb = placeBuild; placeBuild = function (b, x, y, z, rot) {
+    if (b.key !== 'cabin' && b.key !== 'beacon') return _pb(b, x, y, z, rot);
+    const owner = 'own' + (BLD.uid++), base = bBase(x, z, 3.6);
+    if (b.key === 'cabin') bStruct(owner, x, z, rot, base, cabinItems()); else { bStruct(owner, x, z, rot, base, towerItems('beacon', 3, 5)); sources.push({ x, y: base + 3 * LHT + 3, z, color: 0x7ff0ff, intensity: 2.4, kind: 'beacon' }); nearCache = null; }
+    builds.push({ key: b.key, x, y: base, z, rot, g: new THREE.Group() }); builtCount[b.key]++; burst(x, base + 1, z, 0xffe29a, 22, 6); sfx('build');
+  };
+}
+Object.assign(window.__lumen, { bStruct, bFree, towerItems, cabinItems, LM, getP: () => P, bBase });
 /* ============================== ONLINE: see other travellers in the same world, chat with them, switch channels ============================== */
 /* The server (server/server.js) shards players into channels of 150 and only tells you about people near you. This is presence and chat:
    everyone keeps their own saved world, so there is no shared combat, trading or economy, and the client is not cheat-proof. */
