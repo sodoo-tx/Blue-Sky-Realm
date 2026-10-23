@@ -1636,7 +1636,7 @@ function adaptQuality(raw) {
   if (raw > 0.25) return; qAcc += raw; qN++;
   if (qAcc > 1.4) {
     const avg = qAcc / qN; qAcc = qN = 0; let np = pr;
-    if (avg > 0.0215 && pr > 0.6) np = Math.max(0.6, pr - 0.2); else if (avg < 0.0158 && pr < prMax) np = Math.min(prMax, pr + 0.15);
+    if (avg > 0.042 && pr > 0.85) np = Math.max(0.85, pr - 0.12); else if (avg < 0.028 && pr < prMax) np = Math.min(prMax, pr + 0.15);
     if (np !== pr) { pr = np; renderer.setPixelRatio(pr); resize(); }
   }
 }
@@ -12397,14 +12397,14 @@ function qualSet(l, quiet) {
   l = clamp(l, 0, 2); if (l === QL.lvl && QL.set) return; QL.set = true; QL.lvl = l; Object.assign(QL, QLV[l]); ECO.max = QL.b; LV.cover.x = 1e9;
   if (!quiet) toast('🎚 Detail: ' + QN[l] + (QL.auto ? ' (auto)' : ''));
 }
-{ let saved = null; try { saved = localStorage.getItem('lumen_quality'); } catch (e) { /* ignore */ } if (saved === '0' || saved === '1' || saved === '2') { QL.auto = false; qualSet(+saved, true); } else qualSet(IS_TOUCH ? 1 : 2, true); }
+{ let saved = null; try { saved = localStorage.getItem('lumen_quality'); } catch (e) { /* ignore */ } if (saved === '0' || saved === '1' || saved === '2') { QL.auto = false; qualSet(+saved, true); } else qualSet(2, true); }
 function qualCmd(v) { QL.auto = v === 'auto'; try { localStorage.setItem('lumen_quality', v === 'auto' ? 'auto' : String(QN.indexOf(v))); } catch (e) { /* ignore */ } if (v !== 'auto') qualSet(QN.indexOf(v)); else toast('🎚 Detail will adjust itself to your device.'); }
 Object.assign(WHISPER, { 'quality low': () => qualCmd('low'), 'quality medium': () => qualCmd('medium'), 'quality high': () => qualCmd('high'), 'quality auto': () => qualCmd('auto'), quality: () => toast('🎚 Detail: ' + QN[QL.lvl] + (QL.auto ? ' (auto)' : '') + '. Whisper “quality low”, “quality medium”, “quality high” or “quality auto”.') });
 {
   const _ud7 = updateDungeons; updateDungeons = function (dt) {
     _ud7(dt); try {
       if (!playing || paused || dt <= 0 || dt > 0.5) return; QS.acc += dt; QS.n++; QS.T += dt; if (QS.T < 2) return; const fps = QS.n / QS.acc; QS.acc = QS.n = 0; QS.T = 0; QS.fps = fps; if (!QL.auto) return;
-      if (fps < 32) { QS.low += 2; QS.high = 0; } else if (fps > 56) { QS.high += 2; QS.low = 0; } else { QS.low = 0; QS.high = 0; }
+      if (fps < 22) { QS.low += 2; QS.high = 0; } else if (fps > 42) { QS.high += 2; QS.low = 0; } else { QS.low = 0; QS.high = 0; }
       if (QS.low >= 8 && QL.lvl > 0) { QS.low = 0; QS.lastDown = elapsed; qualSet(QL.lvl - 1); } else if (QS.high >= 40 && QL.lvl < 2 && elapsed - QS.lastDown > 120) { QS.high = 0; qualSet(QL.lvl + 1); }
     } catch (e) { /* ignore */ }
   };
@@ -12602,6 +12602,10 @@ for (const sp in CITYK) {
 Object.assign(window.__lumen, { NEST_STAGES, nestStage });
 /* ============================== THREE TIMES THE WORLD: two more settlements for every settlement, two more nests, dungeons, waystones and roads ============================== */
 const TRI = { sites: 0, nests: 0, dungeons: 0, wps: 0, caps: 0, roads: 0 };
+const GC = 1000, G = { s: new Map(), n: new Map(), d: new Map(), w: new Map() };
+const gadd = (g, o) => { const k = Math.floor(o.x / GC) * 40009 + Math.floor(o.z / GC); let a = g.get(k); if (!a) g.set(k, a = []); a.push(o); };
+const gany = (g, x, z, r, f) => { for (let cx = Math.floor((x - r) / GC); cx <= Math.floor((x + r) / GC); cx++) for (let cz = Math.floor((z - r) / GC); cz <= Math.floor((z + r) / GC); cz++) { const a = g.get(cx * 40009 + cz); if (a) for (let i = 0; i < a.length; i++) if (f(a[i])) return true; } return false; };
+for (const o of SITES) gadd(G.s, o); for (const o of NESTS) gadd(G.n, o); for (const o of DUNGEONS) gadd(G.d, o); for (const o of WPS) gadd(G.w, o);
 /* the "who rules this ground" lookup used to scan every settlement for every map pixel: use a grid instead */
 {
   const CELL = 1200; let grid = null, gN = -1;
@@ -12630,7 +12634,7 @@ const TRI_NAMES = {
 (function genTriple() {
   const r = mulberry(31415), used = new Set(SITES.map(s => s.name)), parents = SITES.filter(s => ['village', 'town', 'camp', 'fortress'].includes(s.type)), link = (a, b) => { ROADS.push({ a, b, x1: a.x, z1: a.z, x2: b.x, z2: b.z }); TRI.roads++; };
   const nmFor = id => { const P = TRI_NAMES[id] || TRI_NAMES[2]; for (let t = 0; t < 80; t++) { const n = P[0][Math.floor(r() * P[0].length)] + P[1][Math.floor(r() * P[1].length)]; if (!used.has(n)) { used.add(n); return n; } } return 'Nameless' + Math.floor(r() * 999); };
-  const far = (x, z, d) => { const cell = SITE_CELLS.get(cellKey(Math.floor(x / 800), Math.floor(z / 800))); return SITES.every(s => Math.abs(s.x - x) > d || Math.abs(s.z - z) > d || Math.hypot(s.x - x, s.z - z) > d); };
+  const far = (x, z, d) => !gany(G.s, x, z, d, s => Math.hypot(s.x - x, s.z - z) <= d);
   const mine = [];
   for (const par of parents) {
     const nat = countryAt(par.x, par.z); if (nat === 13) continue; const minD = { village: 800, town: 1000, camp: 480, fortress: 1400 }[par.type];
@@ -12639,18 +12643,18 @@ const TRI_NAMES = {
         const a = r() * TAU, d = 900 + r() * (t < 40 ? 5200 : 9000), x = par.x + Math.cos(a) * d, z = par.z + Math.sin(a) * d; if (x < WB.x0 + 800 || x > WB.x1 - 800 || z < WB.z0 + 800 || z > WB.z1 - 800) continue;
         if (countryT(x, z) < 0.3 || countryAt(x, z) !== nat || !landOk(x, z, 3, 110) || !far(x, z, minD)) continue;
         const nmz = nmFor(nat), id = 'x' + par.type[0] + (TRI.sites++), s = addSite({ id, name: par.type === 'camp' ? nmz + ' Camp' : par.type === 'fortress' ? nmz + ' Keep' : nmz, type: par.type, x, z, seed: 600000 + TRI.sites * 7, c: par.c });
-        mine.push(s); break;
+        gadd(G.s, s); mine.push(s); break;
       }
     }
   }
   /* two more capitals for every realm */
   const caps = SITES.filter(s => s.type === 'capital' && s.id.indexOf('xc') !== 0);
-  for (const par of caps) { const nat = countryAt(par.x, par.z); for (let k = 0; k < 2; k++) for (let t = 0; t < 300; t++) { const a = r() * TAU, d = 1800 + r() * 9000, x = par.x + Math.cos(a) * d, z = par.z + Math.sin(a) * d; if (countryT(x, z) < 0.35 || !landOk(x, z, 3, 100) || !far(x, z, 2000)) continue; const s = addSite({ id: 'xcap' + (TRI.caps++), name: nmFor(nat) + ' City', type: 'capital', x, z, seed: 700000 + TRI.caps * 11, c: par.c }); mine.push(s); break; } }
+  for (const par of caps) { const nat = countryAt(par.x, par.z); for (let k = 0; k < 2; k++) for (let t = 0; t < 300; t++) { const a = r() * TAU, d = 1800 + r() * 9000, x = par.x + Math.cos(a) * d, z = par.z + Math.sin(a) * d; if (countryT(x, z) < 0.35 || !landOk(x, z, 3, 100) || !far(x, z, 2000)) continue; const s = addSite({ id: 'xcap' + (TRI.caps++), name: nmFor(nat) + ' City', type: 'capital', x, z, seed: 700000 + TRI.caps * 11, c: par.c }); gadd(G.s, s); mine.push(s); break; } }
   for (const s of mine) { const o = SITES.filter(q => q !== s && q.type !== 'camp' && Math.hypot(q.x - s.x, q.z - s.z) < 9000).sort((p, q) => Math.hypot(p.x - s.x, p.z - s.z) - Math.hypot(q.x - s.x, q.z - s.z)); for (let i = 0; i < 2; i++) if (o[i]) link(s, o[i]); }
   /* waystones for the new towns, forts and cities, and some for the wilds */
-  const wpAdd = (id, name, x, z, site, c) => { const p = landNear(x, z, 2, 130); WPS.push({ id, name, type: 'waypoint', x: p[0], z: p[1], site, c, discovered: false, entry: { x: p[0] + 2, z: p[1] + 4 }, h: heightRaw(p[0], p[1]) }); TRI.wps++; };
+  const wpAdd = (id, name, x, z, site, c) => { const p = landNear(x, z, 2, 130); const w = { id, name, type: 'waypoint', x: p[0], z: p[1], site, c, discovered: false, entry: { x: p[0] + 2, z: p[1] + 4 }, h: heightRaw(p[0], p[1]) }; WPS.push(w); gadd(G.w, w); TRI.wps++; };
   for (const s of mine) if (s.type === 'town' || s.type === 'fortress' || s.type === 'capital' || (s.type === 'village' && r() < 0.45)) wpAdd('wpx_' + s.id, 'Waystone of ' + s.name, s.x + 14, s.z + 9, s.id, s.c);
-  for (let t = 0, n = 0; n < 300 && t < 20000; t++) { const x = WB.x0 + r() * (WB.x1 - WB.x0), z = WB.z0 + r() * (WB.z1 - WB.z0); if (countryT(x, z) < 0.35 || !landOk(x, z, 4, 120) || WPS.some(w => Math.hypot(w.x - x, w.z - z) < 900)) continue; wpAdd('wpx_w' + n, 'Waystone of ' + regionAt(x, z), x, z, null, 1); n++; }
+  for (let t = 0, n = 0; n < 300 && t < 20000; t++) { const x = WB.x0 + r() * (WB.x1 - WB.x0), z = WB.z0 + r() * (WB.z1 - WB.z0); if (countryT(x, z) < 0.35 || !landOk(x, z, 4, 120) || gany(G.w, x, z, 900, w => Math.hypot(w.x - x, w.z - z) < 900)) continue; wpAdd('wpx_w' + n, 'Waystone of ' + regionAt(x, z), x, z, null, 1); n++; }
 })();
 /* ---------- nests: two more for each one ---------- */
 (function genTripleNests() {
@@ -12661,15 +12665,14 @@ const TRI_NAMES = {
   for (const sp of Object.keys(want)) {
     const S = SP[sp]; let n = 0, tries = 0; const target = want[sp] * 2;
     while (n < target && tries++ < 70000) {
-      const relaxed = tries > 25000, pt = point(sp), x = pt[0], z = pt[1]; if (countryT(x, z) < 0.28) continue; const b = bw(x, z); if (b.t < 0.28) continue; const h = heightRaw(x, z); if (h < 3 || h > 190) continue; if (!relaxed && !HAB[sp](b, h, x, z)) continue;
-      if (Math.hypot(x - 75, z + 45) < 650) continue; if (SITES.some(s => Math.hypot(s.x - x, s.z - z) < s.R1 + 160)) continue;
-      if (NESTS.some(o => Math.hypot(o.x - x, o.z - z) < (o.sp === sp ? Math.max(mind[sp] || 0, 300) : 170))) continue; if (LAKES.some(L => Math.hypot((x - L.x) / L.rx, (z - L.z) / L.rz) < 1.5)) continue;
+      const relaxed = tries > 25000, pt = point(sp), x = pt[0], z = pt[1]; if (countryT(x, z) < 0.28) continue; if (Math.hypot(x - 75, z + 45) < 650) continue; if (gany(G.s, x, z, 540, s => Math.hypot(s.x - x, s.z - z) < s.R1 + 160)) continue;
+      if (gany(G.n, x, z, 1300, o => Math.hypot(o.x - x, o.z - z) < (o.sp === sp ? Math.max(mind[sp] || 0, 300) : 170))) continue; const b = bw(x, z); if (b.t < 0.28) continue; const h = heightRaw(x, z); if (h < 3 || h > 190) continue; if (!relaxed && !HAB[sp](b, h, x, z)) continue; if (LAKES.some(L => Math.hypot((x - L.x) / L.rx, (z - L.z) / L.rz) < 1.5)) continue;
       let flat = true; for (let k = 0; k < 8; k++) { const a = k * 0.785; if (Math.abs(heightRaw(x + Math.cos(a) * 26, z + Math.sin(a) * 26) - h) > (sp === 'dragon' || sp === 'yeti' ? 16 : 8)) { flat = false; break; } } if (!flat) continue;
       const nmx = () => { for (let t = 0; t < 60; t++) { const q = NEST_A[sp][Math.floor(r() * 6)] + ' ' + NEST_B[sp][Math.floor(r() * 4)], Q = q.replace(/\b\w/g, m => m.toUpperCase()); if (!used.has(Q)) { used.add(Q); return Q; } } return NEST_A[sp][Math.floor(r() * 6)] + ' ' + NEST_B[sp][Math.floor(r() * 4)] + ' ' + (++uid); };
       const dist = Math.hypot(x - 75, z + 45), reach = z > 34000 && x < 29000, north = z < -21500, base = reach ? Math.min(30, 24 + Math.floor((z - 34000) / 4000)) : north ? Math.min(24, 14 + Math.floor((-z - 21500) / 5000)) : sp === 'dragon' ? 22 + Math.floor(dist / 800) : Math.min(16, 1 + Math.floor(dist / 650));
       const id = sp + '_t' + (TRI.nests++);
       const N = { id, sp, x, z, h: clamp(h, 3, 190), seed: 12000 + NESTS.length * 17, name: nmx(), R0: S.R[0], R1: S.R[1], base, found: false, built: false, active: false, lvl: 1, food: 0, wood: 0, ore: 0, goods: 0, grudge: 0, relD: 0, members: null, lastDay: 0, kills: 0, deadDay: -1, alert: 0, hostile: false, spec: null, objs: [], geos: [], obs: [], src: [], dyn: [], chests: [], crs: [], plots: [], stT: 0, growth: [], c: countryAt(x, z), touched: false };
-      NESTS.push(N); NEST_BY_ID[id] = N; n++;
+      NESTS.push(N); gadd(G.n, N); NEST_BY_ID[id] = N; n++;
       for (let cx = Math.floor((x - N.R1) / 800); cx <= Math.floor((x + N.R1) / 800); cx++) for (let cz = Math.floor((z - N.R1) / 800); cz <= Math.floor((z + N.R1) / 800); cz++) { const k = cellKey(cx, cz); if (!SITE_CELLS.has(k)) SITE_CELLS.set(k, []); SITE_CELLS.get(k).push(N); }
     }
   }
@@ -12680,11 +12683,11 @@ const TRI_NAMES = {
   const themeAt = (x, z, b, h) => { if (z > 33000) return ['crypt', 'ashen', 'inferno', 'frost', 'ruins'][Math.floor(r() * 5)]; if (b.N > 0.3) return 'frost'; if (b.E > 0.3) return 'inferno'; if (b.T > 0.7) return 'jade'; if (b.K > 0.4 && b.A > 0.4) return 'ashen'; return ['crypt', 'hive', 'ruins', 'sewer'][Math.floor(r() * 4)]; };
   let n = 0, tr = 0; while (n < want && tr++ < 120000) {
     const x = WB.x0 + r() * (WB.x1 - WB.x0), z = WB.z0 + r() * (WB.z1 - WB.z0); if (countryT(x, z) < 0.3 || !landOk(x, z, 3, 120)) continue; const b = bw(x, z), h = heightRaw(x, z), th = themeAt(x, z, b, h); if (th === 'sewer' && !LAKES.some(L => Math.hypot((x - L.x) / (L.rx * 3 + 150), (z - L.z) / (L.rz * 3 + 150)) < 1)) continue;
-    if (Math.hypot(x - 75, z + 45) < 500) continue; if (SITES.some(s => Math.hypot(s.x - x, s.z - z) < s.R1 + 110) || NESTS.some(o => Math.hypot(o.x - x, o.z - z) < o.R1 + 90) || DUNGEONS.some(o => Math.hypot(o.x - x, o.z - z) < 420) || WPS.some(w => Math.hypot(w.x - x, w.z - z) < 80)) continue;
+    if (Math.hypot(x - 75, z + 45) < 500) continue; if (gany(G.s, x, z, 470, s => Math.hypot(s.x - x, s.z - z) < s.R1 + 110) || gany(G.n, x, z, 200, o => Math.hypot(o.x - x, o.z - z) < o.R1 + 90) || gany(G.d, x, z, 420, o => Math.hypot(o.x - x, o.z - z) < 420) || gany(G.w, x, z, 80, w => Math.hypot(w.x - x, w.z - z) < 80)) continue;
     let ok = true; for (let k = 0; k < 8; k++) { const a = k * 0.785; if (Math.abs(heightRaw(x + Math.cos(a) * 16, z + Math.sin(a) * 16) - h) > 6) { ok = false; break; } } if (!ok) continue; const T0 = DTHEME[th]; if (!T0) continue;
     const dist = Math.hypot(x - 75, z + 45), tier = clamp(1 + Math.floor(dist / 2600) + (r() < 0.4 ? 1 : 0) + (z > 33000 ? 2 : 0), 1, 5);
     const D = { id: 'dg' + nid++, theme: th, x, z, h: clamp(h, 3, 140), R0: 12, R1: 26, tier, lvl: 2 + tier * 2 + (z > 33000 ? 20 : 0), hidden: r() < 0.3, seed: 8000 + nid * 29, rot: r() * TAU, name: ADJ[Math.floor(r() * ADJ.length)] + ' ' + T0.nouns[Math.floor(r() * 4)], found: false, built: false, cleared: 0, objs: [], geos: [], obs: [], src: [], node: null, c: countryAt(x, z) };
-    DUNGEONS.push(D); DG_BY_ID[D.id] = D; n++; TRI.dungeons++;
+    DUNGEONS.push(D); gadd(G.d, D); DG_BY_ID[D.id] = D; n++; TRI.dungeons++;
     for (let cx = Math.floor((x - D.R1) / 800); cx <= Math.floor((x + D.R1) / 800); cx++) for (let cz = Math.floor((z - D.R1) / 800); cz <= Math.floor((z + D.R1) / 800); cz++) { const k = cellKey(cx, cz); if (!SITE_CELLS.has(k)) SITE_CELLS.set(k, []); SITE_CELLS.get(k).push(D); }
   }
 })();
@@ -13542,64 +13545,73 @@ const LHT = BLD.LH;
 BPD.spiral = {
   n: 'Spiral stair', cls: 'x',
   parts: p => {
-    const o = [], C = [[-3, 3], [-3, -3], [3, -3], [3, 3]], sl = LHT / 4 / 6; for (let l = 0; l < p.n; l++) for (let s = 0; s < 4; s++) {
+    const o = [], R = p.R || 3, C = [[-R, R], [-R, -R], [R, -R], [R, R]], sl = LHT / 4 / (2 * R); for (let l = 0; l < p.n; l++) for (let s = 0; s < 4; s++) {
       const A = C[s], B = C[(s + 1) % 4], h0 = (l * 4 + s) * LHT / 4, mx = (A[0] + B[0]) / 2, mz = (A[1] + B[1]) / 2, ry = Math.atan2(B[0] - A[0], B[1] - A[1]);
-      o.push([1.7, 0.22, 6.3, mx, h0 + LHT / 8 - 0.11, mz, ry, -Math.atan(sl), 'M'], [0.14, 0.6, 6.3, mx + Math.cos(ry) * 0.78 * (s === 1 || s === 3 ? 1 : 1), h0 + LHT / 8 - 0.2, mz - Math.sin(ry) * 0.78, ry, -Math.atan(sl), 'D']);
+      o.push([1.7, 0.22, 2 * R + 0.3, mx, h0 + LHT / 8 - 0.11, mz, ry, -Math.atan(sl), 'M'], [0.14, 0.7, 2 * R + 0.3, mx + Math.cos(ry) * 0.78, h0 + LHT / 8 + 0.2, mz - Math.sin(ry) * 0.78, ry, -Math.atan(sl), 'D']);
     }
     return o;
   },
-  surf: p => { const o = [], C = [[-3, 3], [-3, -3], [3, -3], [3, 3]]; for (let l = 0; l < p.n; l++) for (let s = 0; s < 4; s++) { const A = C[s], B = C[(s + 1) % 4], h0 = (l * 4 + s) * LHT / 4, h1 = h0 + LHT / 4, e = 0.3 * (LHT / 4 / 6); o.push({ k: 'r', x: (A[0] + B[0]) / 2, z: (A[1] + B[1]) / 2, hx: 0.9, hz: 3.3, y0: h0 - e, y1: h1 + e, ry: Math.atan2(B[0] - A[0], B[1] - A[1]) }); } return o; },
+  surf: p => { const o = [], R = p.R || 3, C = [[-R, R], [-R, -R], [R, -R], [R, R]]; for (let l = 0; l < p.n; l++) for (let s = 0; s < 4; s++) { const A = C[s], B = C[(s + 1) % 4], h0 = (l * 4 + s) * LHT / 4, h1 = h0 + LHT / 4, e = 0.3 * (LHT / 4 / (2 * R)); o.push({ k: 'r', x: (A[0] + B[0]) / 2, z: (A[1] + B[1]) / 2, hx: 0.9, hz: R + 0.3, y0: h0 - e, y1: h1 + e, ry: Math.atan2(B[0] - A[0], B[1] - A[1]) }); } return o; },
 };
-BPD.pyr = { n: 'Pointed roof', cls: 'x', parts: p => { const o = [], H = p.h || 6, run = 4.3, ang = Math.atan(H / run), len = Math.hypot(H, run) + 0.3; for (let k = 0; k < 4; k++) o.push([9, 0.26, len, 0, H / 2, run / 2, k * Math.PI / 2, ang, 'D']); o.push([0.5, 0.6, 0.5, 0, H + 0.1, 0, 0, 0, 'L']); return o; } };
+BPD.pyr = { n: 'Pointed roof', cls: 'x', parts: p => { const o = [], H = p.h || 6, run = p.run || 4.3, ang = Math.atan(H / run), len = Math.hypot(H, run) + 0.3; for (let k = 0; k < 4; k++) o.push([run * 2 + 0.7, 0.26, len, 0, H / 2, run / 2, k * Math.PI / 2, ang, 'D']); o.push([0.5, 0.6, 0.5, 0, H + 0.1, 0, 0, 0, 'L']); return o; } };
+BPD.ramp = { n: 'Entry ramp', cls: 'x', parts: p => { const L = p.len || 4, dh = p.dh || 0.5; return [[2.4, 0.22, Math.hypot(L, dh) + 0.2, 0, -dh / 2 - 0.1, 0, 0, Math.atan(dh / L), 'M'], [0.14, 0.5, Math.hypot(L, dh) + 0.2, -1.2, -dh / 2 + 0.1, 0, 0, Math.atan(dh / L), 'D'], [0.14, 0.5, Math.hypot(L, dh) + 0.2, 1.2, -dh / 2 + 0.1, 0, 0, Math.atan(dh / L), 'D']]; }, surf: p => [{ k: 'r', x: 0, z: 0, hx: 1.25, hz: (p.len || 4) / 2, y0: 0, y1: -(p.dh || 0.5) }] };
 function bStruct(owner, cx, cz, a0, base, items) {
   const c = Math.cos(a0), s = Math.sin(a0); for (const it of items) { const [t, m, lx, ly, lz, la, ex] = it, p = Object.assign({ t, m, x: cx + lx * c + lz * s, y: base + ly, z: cz - lx * s + lz * c, a: a0 + (la || 0), own: owner }, ex || {}); bAdd(p); }
 }
 function bFree(owner) { for (const p of BLD.pieces.slice()) if (p.own === owner) bRemove(p); }
 function bBase(cx, cz, r) { let m = -1e9; for (let dx = -r; dx <= r; dx += r / 2) for (let dz = -r; dz <= r; dz += r / 2) m = Math.max(m, heightRaw(cx + dx, cz + dz)); return Math.round(m * 10) / 10 + 0.3; }
-const SIDES = [[0, 4, 0, [-2, 2]], [0, -4, 0, [-2, 2]], [4, 0, Math.PI / 2, [-2, 2]], [-4, 0, Math.PI / 2, [-2, 2]]];   // south, north, east, west
+const SIDES8 = [[0, 4, 0, [-2, 2]], [0, -4, 0, [-2, 2]], [4, 0, Math.PI / 2, [-2, 2]], [-4, 0, Math.PI / 2, [-2, 2]]];   // the 8 by 8 cabin: south, north, east, west
+const SIDES12 = [[0, 6, 0, [-4, 0, 4]], [0, -6, 0, [-4, 0, 4]], [6, 0, Math.PI / 2, [-4, 0, 4]], [-6, 0, Math.PI / 2, [-4, 0, 4]]];   // the 12 by 12 towers
+const CELLS12 = []; for (const x of [-4, 0, 4]) for (const z of [-4, 0, 4]) CELLS12.push([x, z]);
 function towerItems(style, n, seed) {
-  const it = [], r = mulberry(seed), ruin = style === 'ruin', wiz = style === 'wizard', wm = style === 'watch' ? 0 : style === 'wizard' ? 7 : style === 'ruin' ? 2 : 2, fm = style === 'watch' ? 2 : style === 'wizard' ? 6 : 2, levels = n + (wiz ? 1 : 0);
-  for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push(['found', fm, x, 0, z, 0]);
-  for (let L = 0; L < levels; L++) SIDES.forEach(([sx, sz, a, offs], si) => offs.forEach((o, oi) => {
-    const lx = a ? sx : o, lz = a ? o : sz; let t = 'wall'; if (L === 0 && si === 0 && oi === 1) t = 'door'; else if (!ruin && ((L + si + oi) % 2 === 0) && !(L === 0 && si === 0)) t = 'window'; if (ruin && r() < (0.12 + L * 0.5)) return; if (ruin && L === 0 && si === 0 && oi === 1) t = 'door';
+  const it = [], r = mulberry(seed), ruin = style === 'ruin', wiz = style === 'wizard', wm = style === 'watch' ? 0 : style === 'wizard' ? 7 : 2, fm = style === 'watch' ? 2 : style === 'wizard' ? 6 : 2, levels = n + (wiz ? 1 : 0), top = n * LHT;
+  for (const [x, z] of CELLS12) it.push(['found', fm, x, 0, z, 0]);
+  for (let L = 0; L < levels; L++) SIDES12.forEach(([sx, sz, a, offs], si) => offs.forEach((o, oi) => {
+    const lx = a ? sx : o, lz = a ? o : sz; let t = 'wall'; if (L === 0 && si === 0 && oi === 1) t = 'door'; else if (!ruin && ((L + si + oi) % 2 === 0) && !(L === 0 && si === 0)) t = 'window'; if (ruin && !(L === 0 && si === 0 && oi === 1) && r() < (0.12 + L * 0.45)) return;
     it.push([t, wm, lx, L * LHT, lz, a]);
   }));
-  it.push(['spiral', wm === 7 ? 7 : fm, 0, 0, 0, 0, { n }]);
-  const top = n * LHT; if (!ruin) { for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push([wiz ? 'floor' : 'roof', fm, x, wiz ? top : top, z, 0]); }
-  if (style === 'watch') SIDES.forEach(([sx, sz, a, offs]) => offs.forEach(o => it.push(['fence', 0, a ? sx : o, top, a ? o : sz, a])));
-  if (wiz) { for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push(['roof', fm, x, (n + 1) * LHT, z, 0]); it.push(['pyr', 7, 0, (n + 1) * LHT + 0.2, 0, 0, { h: 6.5 }]); }
-  if (style === 'beacon') { SIDES.forEach(([sx, sz, a, offs]) => offs.forEach(o => it.push(['fence', 2, a ? sx : o, top, a ? o : sz, a]))); it.push(['torch', 0, -3, top, -3, 0], ['torch', 0, 3, top, -3, 0], ['torch', 0, -3, top, 3, 0], ['torch', 0, 3, top, 3, 0]); }
-  if (wiz) { it.push(['table', 0, 0, 0, 0, 0], ['chair', 0, -1.2, 0, 0.4, Math.PI / 2], ['chair', 0, 1.2, 0, 0.4, -Math.PI / 2], ['shelf', 0, 0, 0, -3.55, 0], ['lamp', 0, -1.6, 0, -2.2, 0], ['bed', 0, 2.3, top, -2.4, 0], ['shelf', 0, -2.6, top, -3.55, 0], ['table', 0, 1.2, top, 0.4, 0], ['lamp', 0, -2.6, top, 2.4, 0]); }
-  if (style === 'watch') it.push(['torch', 0, -3.2, top, -3.2, 0], ['torch', 0, 3.2, top, 3.2, 0]);
+  it.push(['spiral', wm === 7 ? 7 : fm, 0, 0, 0, 0, { n, R: 5 }]);
+  if (!ruin) for (const [x, z] of CELLS12) it.push([wiz ? 'floor' : 'roof', fm, x, top, z, 0]);
+  if (style === 'watch' || style === 'beacon') SIDES12.forEach(([sx, sz, a, offs]) => offs.forEach(o => it.push(['fence', style === 'beacon' ? 2 : 0, a ? sx : o, top, a ? o : sz, a])));
+  if (wiz) { for (const [x, z] of CELLS12) it.push(['roof', fm, x, (n + 1) * LHT, z, 0]); it.push(['pyr', 7, 0, (n + 1) * LHT + 0.2, 0, 0, { h: 8.5, run: 6.4 }]); }
+  if (style === 'beacon' || style === 'watch') for (const [x, z] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) it.push(['torch', 0, x, top, z, 0]);
+  if (wiz) { it.push(['table', 0, 0, 0, 0, 0], ['chair', 0, -1.3, 0, 0.5, Math.PI / 2], ['chair', 0, 1.3, 0, 0.5, -Math.PI / 2], ['shelf', 0, -3, 0, -5.55, 0], ['shelf', 0, 0, 0, -5.55, 0], ['shelf', 0, 3, 0, -5.55, 0], ['lamp', 0, -2.6, 0, -2.6, 0], ['lamp', 0, 2.6, 0, -2.6, 0], ['bed', 0, 3.2, top, -3.5, 0], ['bed', 0, -3.2, top, -3.5, 0], ['shelf', 0, 0, top, -5.55, 0], ['table', 0, 0, top, 1, 0], ['chair', 0, -1.3, top, 1, Math.PI / 2], ['lamp', 0, -2.8, top, 3, 0], ['lamp', 0, 2.8, top, 3, 0]); }
+  else if (style === 'watch') it.push(['table', 0, 0, 0, 0, 0], ['chair', 0, -1.3, 0, 0.5, Math.PI / 2], ['chair', 0, 1.3, 0, 0.5, -Math.PI / 2], ['bed', 0, 3, 0, -3.5, 0], ['lamp', 0, -2.6, 0, -2.6, 0]);
+  else if (style === 'beacon') it.push(['table', 0, 0, 0, 0, 0], ['bed', 0, 3, 0, -3.5, 0], ['stove', 0, -3.3, 0, -3.4, 0], ['lamp', 0, 2.6, 0, 2.6, 0]);
   return it;
 }
 function cabinItems() {
   const it = []; for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push(['found', 2, x, 0, z, 0]);
-  SIDES.forEach(([sx, sz, a, offs], si) => offs.forEach((o, oi) => { const lx = a ? sx : o, lz = a ? o : sz; let t = si === 0 && oi === 1 ? 'door' : (si === 0 && oi === 0) || (si === 2 && oi === 0) || (si === 3 && oi === 1) || (si === 1 && oi === 0) ? 'window' : 'wall'; it.push([t, 0, lx, 0, lz, a]); }));
+  SIDES8.forEach(([sx, sz, a, offs], si) => offs.forEach((o, oi) => { const lx = a ? sx : o, lz = a ? o : sz; let t = si === 0 && oi === 1 ? 'door' : (si === 0 && oi === 0) || (si === 2 && oi === 0) || (si === 3 && oi === 1) || (si === 1 && oi === 0) ? 'window' : 'wall'; it.push([t, 0, lx, 0, lz, a]); }));
   for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) it.push(['peak', 0, x, LHT, z, 0]);
   it.push(['bed', 0, -2.7, 0, -2.6, 0], ['table', 0, 0.6, 0, -1.3, 0], ['chair', 0, -0.6, 0, -0.4, Math.PI / 2], ['chair', 0, 1.8, 0, -0.4, -Math.PI / 2], ['stove', 0, 3.1, 0, -3.1, 0], ['lamp', 0, -3.1, 0, 2.7, 0], ['shelf', 0, 0.2, 0, -3.55, 0]);
   return it;
 }
+/* a ramp up to the door when the ground falls away in front of it */
+function entryRamp(items, cx, cz, a0, base, dx, dz) {
+  const c = Math.cos(a0), s = Math.sin(a0), at = len => [cx + dx * c + (dz + len) * s, cz - dx * s + (dz + len) * c]; let q = at(4), dh = base - heightRaw(q[0], q[1]); if (dh < 0.45) return items;
+  const len = Math.max(4, Math.min(16, dh * 3.6)); q = at(len); dh = Math.max(0.5, base - heightRaw(q[0], q[1])); items.push(['ramp', 0, dx, 0, dz + len / 2 + 0.1, 0, { len, dh }]); return items;
+}
 /* ---------- the towers of the wild ---------- */
 function lmTowerBuild(E, style, n) {
-  const base = bBase(E.x, E.z, 3.6), owner = 'lm:' + E.id, seed = Math.round(Math.abs(E.x * 7 + E.z * 13)) + 11;
-  bStruct(owner, E.x, E.z, 0, base, towerItems(style, n, seed)); E.towerTop = base + n * LHT; E.base = base; E.style = style;
-  if (style === 'wizard' || style === 'ruin') { const old = BH; BH = base + 0.5; try { lmChest(E, E.x + (style === 'ruin' ? 2.2 : -2.4), E.z + (style === 'ruin' ? 2.2 : 2.2), style === 'wizard' ? 3 : 2, 'lm:' + E.id); } finally { BH = old; } }
+  const base = bBase(E.x, E.z, 5.6), owner = 'lm:' + E.id, seed = Math.round(Math.abs(E.x * 7 + E.z * 13)) + 11;
+  bStruct(owner, E.x, E.z, 0, base, entryRamp(towerItems(style, n, seed), E.x, E.z, 0, base, 0, 6)); E.towerTop = base + n * LHT; E.base = base; E.style = style;
+  if (style === 'wizard' || style === 'ruin') { const old = BH; BH = base + 0.5; try { lmChest(E, E.x + (style === 'ruin' ? 3 : -3.2), E.z + (style === 'ruin' ? 3 : 3), style === 'wizard' ? 3 : 2, 'lm:' + E.id); } finally { BH = old; } }
   if (style === 'wizard') { const src = { x: E.x, y: base + (n + 1) * LHT + 1, z: E.z, color: 0xa88aff, intensity: 2.4, kind: 'fire' }; sources.push(src); E.src = src; }
   if (style === 'watch') { const src = { x: E.x, y: base + n * LHT + 2.2, z: E.z, color: 0xffc46b, intensity: 1.6, kind: 'lamp' }; sources.push(src); E.src = src; }
 }
-LMK.watchtower.build = (E, p) => lmTowerBuild(E, 'watch', 3);
-LMK.wizardtower.build = (E, p) => lmTowerBuild(E, 'wizard', 4);
-LMK.ruinedtower.build = (E, p) => lmTowerBuild(E, 'ruin', 2);
+LMK.watchtower.build = (E, p) => lmTowerBuild(E, 'watch', 4);
+LMK.wizardtower.build = (E, p) => lmTowerBuild(E, 'wizard', 5);
+LMK.ruinedtower.build = (E, p) => lmTowerBuild(E, 'ruin', 3);
 { const _ld = lmDrop; lmDrop = function (E) { bFree('lm:' + E.id); if (E.src) { const i = sources.indexOf(E.src); if (i >= 0) sources.splice(i, 1); E.src = null; nearCache = null; } _ld(E); }; }
 /* the view from a watchtower still shows you the land, now when you climb to the top yourself */
-setInterval(() => { if (!playing || DG_ON) return; for (const E of LM) { if (E.kind !== 'watchtower' || !E.built || !E.towerTop) continue; if (Math.hypot(E.x - P.x, E.z - P.z) < 4.6 && P.y > E.towerTop - 1.2) { if (E.seen && elapsed - E.seen < 120) continue; E.seen = elapsed; const n = lmReveal(E.x, E.z, 1100); toast('🔭 From the top you can see for miles' + (n ? ' (' + n + ' new map tiles)' : '.')); sfx('done'); const id = 'wt:' + Math.round(E.x); if (n > 8 && !LMS.cd[id]) { LMS.cd[id] = dayNum; lmSave(); addXp('explore', 30); } } } }, 700);
+setInterval(() => { if (!playing || DG_ON) return; for (const E of LM) { if (E.kind !== 'watchtower' || !E.built || !E.towerTop) continue; if (Math.hypot(E.x - P.x, E.z - P.z) < 7.5 && P.y > E.towerTop - 1.2) { if (E.seen && elapsed - E.seen < 120) continue; E.seen = elapsed; const n = lmReveal(E.x, E.z, 1100); toast('🔭 From the top you can see for miles' + (n ? ' (' + n + ' new map tiles)' : '.')); sfx('done'); const id = 'wt:' + Math.round(E.x); if (n > 8 && !LMS.cd[id]) { LMS.cd[id] = dayNum; lmSave(); addXp('explore', 30); } } } }, 700);
 /* ---------- the buildable cabin and beacon: now real, walk-in buildings ---------- */
 {
   const _pb = placeBuild; placeBuild = function (b, x, y, z, rot) {
     if (b.key !== 'cabin' && b.key !== 'beacon') return _pb(b, x, y, z, rot);
-    const owner = 'own' + (BLD.uid++), base = bBase(x, z, 3.6);
-    if (b.key === 'cabin') bStruct(owner, x, z, rot, base, cabinItems()); else { bStruct(owner, x, z, rot, base, towerItems('beacon', 3, 5)); sources.push({ x, y: base + 3 * LHT + 3, z, color: 0x7ff0ff, intensity: 2.4, kind: 'beacon' }); nearCache = null; }
+    const owner = 'own' + (BLD.uid++), base = bBase(x, z, b.key === 'cabin' ? 3.6 : 5.6);
+    if (b.key === 'cabin') bStruct(owner, x, z, rot, base, entryRamp(cabinItems(), x, z, rot, base, 2, 4)); else { bStruct(owner, x, z, rot, base, entryRamp(towerItems('beacon', 4, 5), x, z, rot, base, 0, 6)); sources.push({ x, y: base + 4 * LHT + 3, z, color: 0x7ff0ff, intensity: 2.4, kind: 'beacon' }); nearCache = null; }
     builds.push({ key: b.key, x, y: base, z, rot, g: new THREE.Group() }); builtCount[b.key]++; burst(x, base + 1, z, 0xffe29a, 22, 6); sfx('build');
   };
 }
@@ -13974,10 +13986,7 @@ if (TOUCH) {
   document.body.classList.add('touch');
   /* ---------- quality defaults for phones (only the first time) ---------- */
   try {
-    if (!localStorage.getItem('lumenisle_mobile_init')) {
-      localStorage.setItem('lumenisle_mobile_init', '1'); Object.assign(SET, { view: 3, shadows: false, bloom: false, grass: false, hud: 1 });
-      perf = true; usePost = false; sun.castShadow = false; prMax = Math.min(window.devicePixelRatio || 1, 1.25); pr = Math.min(pr, prMax); renderer.setPixelRatio(pr); resize(); applySettings(true);
-    }
+    localStorage.setItem('lumenisle_mobile_init', '1');   // phones now start on High; see gfx2.js
   } catch (e) { /* ignore */ }
   /* ---------- the overlay ---------- */
   const root = document.createElement('div'); root.id = 'touch';
@@ -14015,15 +14024,15 @@ if (TOUCH) {
   const cv = renderer.domElement; cv.style.touchAction = 'none';
   cv.addEventListener('touchstart', e => {
     if (!playing || paused || uiOpen) return; e.preventDefault();
-    if (e.touches.length >= 2) { tPinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); tLook = null; return; }
+    if (e.targetTouches.length >= 2) { tPinch = Math.hypot(e.targetTouches[0].clientX - e.targetTouches[1].clientX, e.targetTouches[0].clientY - e.targetTouches[1].clientY); tLook = null; return; }
     const t = e.changedTouches[0]; tLook = { id: t.identifier, x: t.clientX, y: t.clientY, moved: 0 };
   }, { passive: false });
   cv.addEventListener('touchmove', e => {
     if (!playing || paused || uiOpen) return; e.preventDefault();
-    if (e.touches.length >= 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); if (tPinch) cam.distT = clamp(cam.distT - (d - tPinch) * 0.03, 4, 15); tPinch = d; return; }
+    if (e.targetTouches.length >= 2) { const d = Math.hypot(e.targetTouches[0].clientX - e.targetTouches[1].clientX, e.targetTouches[0].clientY - e.targetTouches[1].clientY); if (tPinch) cam.distT = clamp(cam.distT - (d - tPinch) * 0.03, 4, 15); tPinch = d; return; }
     if (!tLook) return; for (const t of e.changedTouches) if (t.identifier === tLook.id) { const dx = t.clientX - tLook.x, dy = t.clientY - tLook.y; tLook.x = t.clientX; tLook.y = t.clientY; tLook.moved += Math.abs(dx) + Math.abs(dy); cam.yaw -= dx * 0.0062 * SENS; cam.pitch = clamp(cam.pitch + dy * 0.0054 * SENS, -0.15, 1.25); }
   }, { passive: false });
-  const lEnd = e => { for (const t of e.changedTouches) if (tLook && t.identifier === tLook.id) tLook = null; if (e.touches.length < 2) tPinch = 0; };
+  const lEnd = e => { for (const t of e.changedTouches) if (tLook && t.identifier === tLook.id) tLook = null; if (e.targetTouches.length < 2) tPinch = 0; };
   cv.addEventListener('touchend', lEnd); cv.addEventListener('touchcancel', lEnd);
   /* tap the quick slots and skill buttons */
   const hb = $('hotbar'), sb = $('skillbar');
@@ -14047,6 +14056,23 @@ if (TOUCH) {
   /* a touch-friendly pause screen */
   const ps = document.querySelector('#pause p.sub'); if (ps) ps.textContent = 'Tap anywhere to continue';
 }
+/* ============================== GRAPHICS LEVELS: Low, Medium, High and Ultra, with phones starting on High ============================== */
+const GFX = { lvl: -1, lock: false };
+const GFX_L = [{ n: 'Low', pr: 0.75, view: 3, sh: false, bl: false, gr: false, ql: 0 }, { n: 'Medium', pr: 1.0, view: 4, sh: false, bl: true, gr: true, ql: 1 }, { n: 'High', pr: 1.6, view: 5, sh: true, bl: true, gr: true, ql: 2 }, { n: 'Ultra', pr: 2.5, view: 6, sh: true, bl: true, gr: true, ql: 2 }];
+function gfxSet(i, userChosen, quiet) {
+  const L = GFX_L[clamp(i, 0, 3)]; GFX.lvl = clamp(i, 0, 3); GFX.lock = !!userChosen; perf = false; Object.assign(SET, { view: L.view, shadows: L.sh, bloom: L.bl, grass: L.gr });
+  prMax = Math.min(window.devicePixelRatio || 1, L.pr); pr = prMax; renderer.setPixelRatio(pr); resize(); applySettings(true); QL.auto = false; qualSet(L.ql, true); if (userChosen) { try { localStorage.setItem('lumen_gfxlvl', String(GFX.lvl)); } catch (e) { /* ignore */ } }
+  if (!quiet) toast('🎨 Graphics: ' + L.n + (userChosen ? '' : ' (auto)'));
+}
+{ const _aq = adaptQuality; adaptQuality = function (raw) { if (GFX.lock) return; return _aq(raw); }; }
+function gfxCycle() { gfxSet((GFX.lvl + 1) % 4, true); }
+{
+  let saved = null; try { saved = localStorage.getItem('lumen_gfxlvl'); } catch (e) { /* ignore */ }
+  if (saved !== null && /^[0-3]$/.test(saved)) gfxSet(+saved, true, true); else if (typeof TOUCH !== 'undefined' && TOUCH) { gfxSet(2, false, true); QL.auto = true; }
+  if (typeof TOUCH !== 'undefined' && TOUCH) { const m = $('tmore'); if (m) { const b = document.createElement('button'); b.innerHTML = '<span>🎨</span><small>Graphics</small>'; b.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); gfxCycle(); m.classList.add('hide'); }, { passive: false }); m.appendChild(b); } }
+}
+Object.assign(WHISPER, { graphics: () => gfxCycle(), 'graphics low': () => gfxSet(0, true), 'graphics medium': () => gfxSet(1, true), 'graphics high': () => gfxSet(2, true), 'graphics ultra': () => gfxSet(3, true) });
+Object.assign(window.__lumen, { GFX, gfxSet, gfxCycle });
 /* ============================== PERFORMANCE: shadow refresh that follows the detail level, cheaper region survey, map outlines for the new lands ============================== */
 const PERF = { sh: 0, ivl: 1 };
 renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true;
