@@ -18,6 +18,7 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 | I / M / J / U / N | Pack and crafting / map / skills / achievements / classes |
 | Z X V 0 | Class skills |
 | Enter | Whisper box: type `warden`, `rift`, `guard`, `lore`, `daily`, `guide` |
+| ; | **Ascension**: Paragon perks, Bestiary, daily Trials, titles |
 | F1 / F2 / F8 | Guide / **send feedback** / mute |
 | Controller | Left stick move, right stick look, A jump, X or RT attack, B roll, Y interact, LB sprint, RB or LT guard, D-pad class skills, Back map, Start pause |
 
@@ -29,7 +30,8 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 5. **World wardens.** Type `warden` to find one. Watch the red circles. Hit the weak point when it is exposed.
 6. **Signature items (✨).** Wardens, dungeon bosses and the rift drop them. Do their effects feel good and readable? Are any overpowered?
 7. **Crafting and the Pack.** Search, favourites (right-click an item), the ×5 / Max queue, and the map pins (Alt-click the map).
-8. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
+8. **Ascension (;).** Do Paragon points, Bestiary tiers and the three daily Trials feel rewarding? Is anything too slow or too generous?
+9. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
 
 ## Sending feedback
 Press **F2** (or click **BETA · F2 feedback** at the bottom right).
