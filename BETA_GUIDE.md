@@ -20,6 +20,8 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 | Enter | Whisper box: type `reach` (endgame zone, level 30+), `leave`, `forge`, `ascend`, `warden`, `rift`, `guard`, `lore`, `daily`, `guide` |
 | ; | **Ascension**: Paragon perks, Bestiary, daily Trials, titles |
 | \ | **The Forge**: temper gear to +10, reforge a bonus |
+| , | **Navigator**: guide arrow, beam and map line to quests, places, creatures, items |
+| ' | **Ego shrine**: ego gear that levels as you use it |
 | F1 / F2 / F8 | Guide / **send feedback** / mute |
 | Controller | Left stick move, right stick look, A jump, X or RT attack, B roll, Y interact, LB sprint, RB or LT guard, D-pad class skills, Back map, Start pause |
 
@@ -33,7 +35,8 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 7. **Crafting and the Pack.** Search, favourites (right-click an item), the ×5 / Max queue, and the map pins (Alt-click the map).
 8. **Ascension (;).** Do Paragon points, Bestiary tiers and the three daily Trials feel rewarding? Is anything too slow or too generous?
 9. **The Forge (\) and the Hollow Reach.** Is tempering/reforging worth the coins? In the Reach (whisper `reach`), are the elites and the Hollow King fair, and are the drops exciting?
-10. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
+10. **Navigator (,), map filters and Ego gear (').** Does the arrow/beam lead you correctly? Do the map filters tame the clutter? Do ego items level at a good pace and feel worth using?
+11. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
 
 ## Sending feedback
 Press **F2** (or click **BETA · F2 feedback** at the bottom right).
