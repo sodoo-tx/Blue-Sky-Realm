@@ -23,6 +23,7 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 | N | **Training grounds**: rumours, discovered grounds; learn classes from masters (level 10+) |
 | whisper `souls` | **Soul vessel** (Necromancer of Soul): capture, summon, devour, spy through souls |
 | whisper `blood` / `pack` | **Blood** pool for blood classes; **the pack** for beast classes (bond, growth, riding) |
+| whisper `faith` / `pacts` | **Faith and oaths** (holy classes); **Pacts and corruption** (demon classes) |
 | whisper `species` | **Species**: ancestry and evolution by devouring essence |
 | ; | **Ascension**: Paragon perks, Bestiary, daily Trials, titles |
 | ] | **The Forge**: temper gear to +10, reforge a bonus |
