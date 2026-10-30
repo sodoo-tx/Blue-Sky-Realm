@@ -21,6 +21,7 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 | [ | **Hero sheet** and **Talent tree** (six branches, keystones) |
 | \ | **Smart menu**: search, badges, suggestions |
 | N | **Training grounds**: rumours, discovered grounds; learn classes from masters (level 10+) |
+| whisper `souls` | **Soul vessel** (Necromancer of Soul): capture, summon, devour, spy through souls |
 | whisper `species` | **Species**: ancestry and evolution by devouring essence |
 | ; | **Ascension**: Paragon perks, Bestiary, daily Trials, titles |
 | ] | **The Forge**: temper gear to +10, reforge a bonus |
