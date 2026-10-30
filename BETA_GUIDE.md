@@ -69,3 +69,4 @@ The report attaches your build, device, quality setting, position, gear, rift pr
 
 ## New whispers
 `easy`, `normal`, `hard` (difficulty); `firstclass` (travel to a master); `hunter` (where is the Legend Hunter).
+Whispers: `mythic`, `respec`, `bond`, `photo`, `access`, `today`.

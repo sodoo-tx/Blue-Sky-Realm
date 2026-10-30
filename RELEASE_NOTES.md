@@ -51,3 +51,14 @@ Self-test 20/20 (signed in), 0 integrity failures across 633 classes and 117 gro
 - Legends have story scenes and unique monuments; masters wear family gear.
 - Codex: "Report this class" prefills the F2 form. F2 reports now include classes and progress.
 - `tools/report_dashboard.html`: paste reports to see totals and export CSV.
+
+## Update: Systems III
+- Mythic Rift (whisper `mythic`): Endless Rift tier 10+ has two modifiers and a weekly affix; clears give Mythic Shards, fastest-clear records, and 25 ranks of Mythic Power.
+- Change of path (`respec`): set a class aside for a fee (progress kept) plus synergy advice.
+- Master bonds (`bond`): three story chapters per master from rapport; the last gives +1% damage.
+- Photo mode (F8 or `photo`): hides the HUD and saves a share card.
+- Daily world events and a featured class family (`today`).
+- Accessibility (`access`): interface size, colour-blind filters, reduced motion, key remapping, hints toggle.
+- Initiation hint bubbles.
+- Legends are unique per world: the world server keeps a registry (`server/legends.json`); first claim wins.
+- Balance gate (`__lumen.atGate(trials)`): 3 tiers of harder fights; use 5+ trials, 2 is noisy. Small damage tuning for weak/strong families.
