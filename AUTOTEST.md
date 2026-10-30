@@ -38,3 +38,11 @@ Known limits
   added for every non-fighter school class), or about 850 skill casts.
 - The simulations move the character and change class state; run them on a throwaway page, not on a real save, and run
   the damage simulation (`balRun`) first on a fresh page because kills raise skill levels.
+
+Persistence round trip (needs a real account, because storage is a no-op when signed out)
+1. Sign up (Sign up tab, name 3-16 letters/numbers, password 6+; submit with Enter), then reload so the account is current.
+2. Press Play, then `__lumen.atPersistSet()` (sets distinctive values in every class-system module, saves everything).
+3. Reload, then `__lumen.atPersistCheck()` -> `{ ok: true, bad: [] }`.
+4. For game state (class slots, practice points, learned skills): set `CLS.slots`, call `__lumen.saveNow()`, reload, press Play.
+Verified on 2026-10-30: all 16 module states, two class slots, class practice and the learned skill list survive a reload.
+All modules also save every 20 s and when the page is hidden or closed (`saveAllMods()`), not just on events.

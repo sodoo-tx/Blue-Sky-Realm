@@ -45,7 +45,8 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 9. **The Forge (\) and the Hollow Reach.** Is tempering/reforging worth the coins? In the Reach (whisper `reach`), are the elites and the Hollow King fair, and are the drops exciting?
 10. **Navigator (,), map filters and Ego gear (').** Does the arrow/beam lead you correctly? Do the map filters tame the clutter? Do ego items level at a good pace and feel worth using?
 11. **Classes, grounds, species.** At level 10 can you find a training ground (N for rumours, , for the Navigator)? Do masters, starter weapons, training golems and proficiency (damage up, cooldown down) feel good? Do species evolutions feel reachable? Are rare classes too strong for how far they are?
-12. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
+12. **The Initiation and master tasks.** At level 10 does the instructor's pointer and the six steps make the first class clear? Do the daily master tasks (Tasks tab) feel worth doing, and does rapport lowering prices matter?
+13. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
 
 ## Sending feedback
 Press **F2** (or click **BETA · F2 feedback** at the bottom right).
