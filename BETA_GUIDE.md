@@ -25,6 +25,7 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 | whisper `blood` / `pack` | **Blood** pool for blood classes; **the pack** for beast classes (bond, growth, riding) |
 | whisper `faith` / `pacts` | **Faith and oaths** (holy classes); **Pacts and corruption** (demon classes) |
 | whisper `style` | **Class style**: the meter, rule and skills of martial, magic and racial classes |
+| whisper `classes` | **Class codex**: browse all 633 classes with skills, mechanic, requirements and where to learn them |
 | whisper `species` | **Species**: ancestry and evolution by devouring essence |
 | ; | **Ascension**: Paragon perks, Bestiary, daily Trials, titles |
 | ] | **The Forge**: temper gear to +10, reforge a bonus |
