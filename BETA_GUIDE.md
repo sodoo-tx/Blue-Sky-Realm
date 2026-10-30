@@ -46,7 +46,8 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 10. **Navigator (,), map filters and Ego gear (').** Does the arrow/beam lead you correctly? Do the map filters tame the clutter? Do ego items level at a good pace and feel worth using?
 11. **Classes, grounds, species.** At level 10 can you find a training ground (N for rumours, , for the Navigator)? Do masters, starter weapons, training golems and proficiency (damage up, cooldown down) feel good? Do species evolutions feel reachable? Are rare classes too strong for how far they are?
 12. **The Initiation and master tasks.** At level 10 does the instructor's pointer and the six steps make the first class clear? Do the daily master tasks (Tasks tab) feel worth doing, and does rapport lowering prices matter?
-13. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
+13. **Mastery trials.** At class level 10, 20 and 30 (the Trials tab at a master of your family): is the gauntlet fair, is the reward signature skill exciting, and does yielding feel safe?
+14. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
 
 ## Sending feedback
 Press **F2** (or click **BETA · F2 feedback** at the bottom right).
