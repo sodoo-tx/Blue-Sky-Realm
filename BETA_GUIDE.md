@@ -20,6 +20,8 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 | Enter | Whisper box: type `reach` (endgame zone, level 30+), `leave`, `forge`, `ascend`, `warden`, `rift`, `guard`, `lore`, `daily`, `guide` |
 | [ | **Hero sheet** and **Talent tree** (six branches, keystones) |
 | \ | **Smart menu**: search, badges, suggestions |
+| N | **Training grounds**: rumours, discovered grounds; learn classes from masters (level 10+) |
+| whisper `species` | **Species**: ancestry and evolution by devouring essence |
 | ; | **Ascension**: Paragon perks, Bestiary, daily Trials, titles |
 | ] | **The Forge**: temper gear to +10, reforge a bonus |
 | , | **Navigator**: guide arrow, beam and map line to quests, places, creatures, items |
@@ -38,7 +40,8 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 8. **Ascension (;).** Do Paragon points, Bestiary tiers and the three daily Trials feel rewarding? Is anything too slow or too generous?
 9. **The Forge (\) and the Hollow Reach.** Is tempering/reforging worth the coins? In the Reach (whisper `reach`), are the elites and the Hollow King fair, and are the drops exciting?
 10. **Navigator (,), map filters and Ego gear (').** Does the arrow/beam lead you correctly? Do the map filters tame the clutter? Do ego items level at a good pace and feel worth using?
-11. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
+11. **Classes, grounds, species.** At level 10 can you find a training ground (N for rumours, , for the Navigator)? Do masters, starter weapons, training golems and proficiency (damage up, cooldown down) feel good? Do species evolutions feel reachable? Are rare classes too strong for how far they are?
+12. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
 
 ## Sending feedback
 Press **F2** (or click **BETA · F2 feedback** at the bottom right).
