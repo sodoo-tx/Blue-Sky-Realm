@@ -18,8 +18,10 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 | I / M / J / U / N | Pack and crafting / map / skills / achievements / classes |
 | Z X V 0 | Class skills |
 | Enter | Whisper box: type `reach` (endgame zone, level 30+), `leave`, `forge`, `ascend`, `warden`, `rift`, `guard`, `lore`, `daily`, `guide` |
+| [ | **Hero sheet** and **Talent tree** (six branches, keystones) |
+| \ | **Smart menu**: search, badges, suggestions |
 | ; | **Ascension**: Paragon perks, Bestiary, daily Trials, titles |
-| \ | **The Forge**: temper gear to +10, reforge a bonus |
+| ] | **The Forge**: temper gear to +10, reforge a bonus |
 | , | **Navigator**: guide arrow, beam and map line to quests, places, creatures, items |
 | ' | **Ego shrine**: ego gear that levels as you use it |
 | F1 / F2 / F8 | Guide / **send feedback** / mute |
