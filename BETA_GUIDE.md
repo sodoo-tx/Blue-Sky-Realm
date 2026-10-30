@@ -66,3 +66,6 @@ The report attaches your build, device, quality setting, position, gear, rift pr
 - Bosses reuse monster models with a new look (glow, spikes, aura).
 - Menus (Pack, map, crafting) need a mouse or keyboard; a controller covers gameplay only.
 - Low-end phones may run slowly. Try `quality low`.
+
+## New whispers
+`easy`, `normal`, `hard` (difficulty); `firstclass` (travel to a master); `hunter` (where is the Legend Hunter).

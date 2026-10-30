@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Report Dashboard</title>
+<style>:root{--bg:#10131c;--fg:#e8ecf8;--mut:#8b94ad;--card:#1a1f2e;--acc:#ffd36b}@media(prefers-color-scheme:light){:root{--bg:#f4f5f9;--fg:#1a1d29;--mut:#5b647c;--card:#fff;--acc:#a86b00}}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 "Segoe UI",system-ui,sans-serif;padding:16px;max-width:1000px;margin:auto}h1{font-size:22px}textarea{width:100%;height:150px;background:var(--card);color:var(--fg);border:1px solid var(--mut);border-radius:8px;padding:8px;box-sizing:border-box}
+button{background:var(--acc);color:#111;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;margin:8px 8px 8px 0}.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.c{background:var(--card);border-radius:10px;padding:12px}.c h3{margin:0 0 6px;font-size:14px;color:var(--acc)}.r{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #8883;padding:2px 0}.b{height:6px;background:var(--acc);border-radius:3px;margin-bottom:3px}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:4px;border-bottom:1px solid #8883;vertical-align:top}</style></head><body>
+<h1>Tester report dashboard</h1><p style="color:var(--mut)">Paste F2 reports (separate several with a line containing only <code>---</code>), then press Analyse. Nothing leaves your computer.</p>
+<textarea id="in" placeholder="Paste reports here"></textarea><br><button id="go">Analyse</button><button id="csv">Download CSV</button>
+<div id="out"></div>
+<script>
+let R=[];const $=id=>document.getElementById(id);
+function parse(t){return t.split(/^\s*-{3,}\s*$/m).map(b=>b.trim()).filter(Boolean).map(b=>{const o={raw:b};for(const l of b.split('\n')){const m=l.match(/^\s*([A-Za-z ]+?):\s*(.*)$/);if(m)o[m[1].trim().toLowerCase()]=m[2].trim()}return o})}
+function tally(k,f){const m={};R.forEach(r=>{const v=(f?f(r):r[k])||'(none)';m[v]=(m[v]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,8)}
+function card(t,rows){const mx=rows.length?rows[0][1]:1;return '<div class="c"><h3>'+t+'</h3>'+rows.map(([k,v])=>'<div class="r"><span>'+esc(k)+'</span><b>'+v+'</b></div><div class="b" style="width:'+Math.round(v/mx*100)+'%"></div>').join('')+'</div>'}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function dev(r){const b=r.browser||'';return /mobile|android|iphone/i.test(b)?'Mobile':/electron/i.test(b)?'Desktop app':/chrome|firefox|safari|edge/i.test(b)?'Desktop browser':'(unknown)'}
+function cls(r){return (r.classes||'').split(/[,;|]/).map(s=>s.trim()).filter(Boolean)}
+$('go').onclick=()=>{R=parse($('in').value);if(!R.length){$('out').innerHTML='<p>No reports found.</p>';return}
+const cm={};R.forEach(r=>cls(r).forEach(c=>cm[c]=(cm[c]||0)+1));const cr=Object.entries(cm).sort((a,b)=>b[1]-a[1]).slice(0,8);
+$('out').innerHTML='<h2>'+R.length+' reports</h2><div class="g">'+card('By type',tally('type'))+card('By tag',tally('tag'))+card('Quality',tally('quality'))+card('Device',tally(0,dev))+card('Classes mentioned',cr)+card('Build',tally('build'))+'</div><h2>Details</h2><table><tr><th>Type</th><th>Tag</th><th>Character</th><th>Message</th></tr>'+R.map(r=>'<tr><td>'+esc(r.type||'')+'</td><td>'+esc(r.tag||'')+'</td><td>'+esc((r.character||'')+' '+(r.progress||''))+'</td><td>'+esc(r.message||r.messages||r.errors||r.raw.slice(0,200))+'</td></tr>').join('')+'</table>'};
+$('csv').onclick=()=>{const k=['type','build','time','browser','quality','character','classes','progress','tag','message','errors'];const q=v=>'"'+String(v||'').replace(/"/g,'""')+'"';const t=[k.join(',')].concat(R.map(r=>k.map(x=>q(r[x])).join(','))).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download='reports.csv';a.click()};
+</script></body></html>

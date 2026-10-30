@@ -40,3 +40,14 @@ Class skill effects by family, themed training grounds and master looks.
 
 ## Checks run before release
 Self-test 20/20 (signed in), 0 integrity failures across 633 classes and 117 grounds, a damage-balance simulation (median 59 DPS, range 30-94 per family), a survival simulation (about 89% average win rate), and a real sign-up/save/reload round trip. See `AUTOTEST.md` and `BALANCE_REPORT.md`.
+
+## Update: Systems II
+- Difficulty: whisper `easy` / `normal` / `hard` (also in the menu).
+- "Take me to a master": whisper `firstclass` or menu item, after level 10 with no class.
+- 18 named class synergies (shown on the Hero sheet).
+- Racial classes (band 3+) need the matching species.
+- Legend Hunters roam from level 40 while legends are unfound (whisper `hunter` to test).
+- Per-family skill sounds; skippable intro for new accounts.
+- Legends have story scenes and unique monuments; masters wear family gear.
+- Codex: "Report this class" prefills the F2 form. F2 reports now include classes and progress.
+- `tools/report_dashboard.html`: paste reports to see totals and export CSV.
