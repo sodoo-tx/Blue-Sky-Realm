@@ -26,6 +26,7 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 | whisper `faith` / `pacts` | **Faith and oaths** (holy classes); **Pacts and corruption** (demon classes) |
 | whisper `style` | **Class style**: the meter, rule and skills of martial, magic and racial classes |
 | whisper `classes` | **Class codex**: browse all 633 classes with skills, mechanic, requirements and where to learn them |
+| whisper `legends` | **Legendary classes**: eight hidden classes, one of each per world; riddles, monuments, guardians |
 | whisper `species` | **Species**: ancestry and evolution by devouring essence |
 | ; | **Ascension**: Paragon perks, Bestiary, daily Trials, titles |
 | ] | **The Forge**: temper gear to +10, reforge a bonus |
@@ -48,7 +49,8 @@ Thank you for testing. This guide covers how to play, what to look at, and how t
 11. **Classes, grounds, species.** At level 10 can you find a training ground (N for rumours, , for the Navigator)? Do masters, starter weapons, training golems and proficiency (damage up, cooldown down) feel good? Do species evolutions feel reachable? Are rare classes too strong for how far they are?
 12. **The Initiation and master tasks.** At level 10 does the instructor's pointer and the six steps make the first class clear? Do the daily master tasks (Tasks tab) feel worth doing, and does rapport lowering prices matter?
 13. **Mastery trials.** At class level 10, 20 and 30 (the Trials tab at a master of your family): is the gauntlet fair, is the reward signature skill exciting, and does yielding feel safe?
-14. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
+14. **Legendary classes.** Can you find a monument from the riddle (whisper `legends`)? Is the guardian a fair, memorable fight? Are the classes strong in a way that feels earned rather than broken?
+15. **Performance.** Note your device and the quality setting (K, or whisper `quality auto`). Report stutters and where they happened.
 
 ## Sending feedback
 Press **F2** (or click **BETA · F2 feedback** at the bottom right).
