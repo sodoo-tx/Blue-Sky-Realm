@@ -8,6 +8,8 @@ Version: beta 2 (30 October 2026). Single offline game; saves live in the browse
 - Your character is now a small armoured knight with a big plumed helmet, a red cape and a round shield. It was modelled in Blender and uses the hero's normal walk, jump, roll and attack animations.
 - The knight carries its own sword until you craft or buy a weapon; after that it holds your best weapon or tool.
 - The knight's face takes the skin colour you pick, so every species can wear the armour.
+- Your shirt colour dyes the knight's tabard, sleeves and shield (the default keeps the classic blue).
+- Online, other travellers now appear as knights too, in their own colours.
 - Prefer the old look? Open the character menu and set **Outfit** to *Adventurer*. Hair, hats and glasses only show with the Adventurer outfit.
 - Indoors, where the camera sits close, the knight fades out so it never blocks your view.
 
