@@ -2,6 +2,15 @@
 
 Version: beta 2 (30 October 2026). Single offline game; saves live in the browser or on the PC under your account.
 
+## Update: 7 November 2026
+
+**A new hero: the chibi knight**
+- Your character is now a small armoured knight with a big plumed helmet, a red cape and a round shield. It was modelled in Blender and uses the hero's normal walk, jump, roll and attack animations.
+- The knight carries its own sword until you craft or buy a weapon; after that it holds your best weapon or tool.
+- The knight's face takes the skin colour you pick, so every species can wear the armour.
+- Prefer the old look? Open the character menu and set **Outfit** to *Adventurer*. Hair, hats and glasses only show with the Adventurer outfit.
+- Indoors, where the camera sits close, the knight fades out so it never blocks your view.
+
 ## What is new since the first beta
 
 **A new way to choose a class**
