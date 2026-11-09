@@ -2,6 +2,13 @@
 
 Version: beta 2 (30 October 2026). Single offline game; saves live in the browser or on the PC under your account.
 
+## Update: 9 November 2026 (gear)
+
+**Everything you equip now shows on your hero**
+- All 22,320 equippable items have a 3D model, built from each item's type, material colour, grade and rarity: 21 weapon families (swords, katanas, rapiers, daggers, axes, hammers, maces, flails, clubs, spears, halberds, tridents, scythes, staffs, wands, bows, crossbows, claws, picks and more), 8 shield shapes, helmets, great helms, coifs, hoods, hats, caps, crowns, circlets and masks, armour, robes and cloaks, gloves and gauntlets, boots and greaves, and every kind of charm.
+- Equipping changes the hero at once: the weapon goes in your hand, shields on your arm, head gear replaces the knight's helmet (or the Adventurer's hat), armour recolours the knight's plate, gloves and boots recolour and reshape the hands and feet, and charms hang at the neck, sit on a finger or wrist, wrap the waist or back, or float around you.
+- Effects: fire, frost, storm, holy, shadow, nature, arcane, necrotic, infernal and fae gear sheds matching particles; rare and enchanted pieces glow; legendary gear and two or more pieces of a set draw a ring of light at your feet; talismans, idols and ego companions orbit you; your swing trail and hit sparks take your weapon's colour; every potion, food and buff shows an aura while it lasts (a shield bubble for defence, rising lights for healing, gold sparkles for luck, and so on); equipping and using items bursts with light.
+
 ## Update: 9 November 2026
 
 **The whole world goes chibi**

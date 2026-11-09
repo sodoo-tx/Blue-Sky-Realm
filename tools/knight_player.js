@@ -1,14 +1,15 @@
 /* ============================== CHIBI KNIGHT: the main character, modelled in Blender (tools/chibi_knight.blend, exported to tools/knight_models.json) ============================== */
-/* tint slots in the knight models: 1 = skin (face), 3 = cloth (tabard, sleeves, shield face). The cloth keeps its blue unless a shirt colour other than the default is chosen. */
+/* tint slots in the knight models: 1 skin (face), 2 armour plate, 3 cloth (tabard, sleeves, shield face), 4 gauntlets, 5 boots, 6 helmet.
+   The cloth keeps its blue unless a shirt colour other than the default is chosen; slots 2/4/5/6 follow equipped armour (gear.js). */
 Object.assign(MODELS, __KNIGHT_MODELS__);
 const PKN = { hip: 0.483, sho: 0.966, legX: 0.207, armX: 0.5175, armZ: 0.023, on: false, key: '', objs: [], mat: VC_MAT.clone(), head: new THREE.Vector3() };
 const pknTint = (skin, shirt) => { const t = { 1: skin }; if (shirt !== undefined && shirt !== CH_DEFAULT.shirt) t[3] = shirt; return t; };
 /* dress a humanoid rig (hero or online avatar) in the knight kit; returns the added objects */
 function pknKit(R, tint, mat) {
   const out = [], put = (parent, name, mx, t) => { const o = mdl(name, t); if (mat) o.traverse(m => { if (m.isMesh) m.material = mat; }); if (mx) o.scale.x = -1; o.userData.kn = true; parent.add(o); out.push(o); return o; };
-  put(R.torso, 'pk_torso', false, tint);
+  put(R.torso, 'pk_torso', false, tint); out.helm = put(R.torso, 'pk_helm', false, tint);
   put(R.legL, 'pk_leg'); put(R.legR, 'pk_leg', true);
-  put(R.armL, 'pk_arm', false, tint); put(R.armL, 'pk_shield', false, tint); put(R.armR, 'pk_arm', true, tint);
+  put(R.armL, 'pk_arm', false, tint); out.shield = put(R.armL, 'pk_shield', false, tint); put(R.armR, 'pk_arm', true, tint);
   const h = new THREE.Group(); h.position.set(0.0575, -0.391, 0.115); h.rotation.x = 0.9; h.userData.kn = true; R.armR.add(h); out.push(h);
   const sw = mdl('pk_sword'); if (mat) sw.traverse(m => { if (m.isMesh) m.material = mat; }); h.add(sw); out.hold = h;
   R.legL.position.set(-PKN.legX, PKN.hip, 0); R.legR.position.set(PKN.legX, PKN.hip, 0); R.armL.position.set(-PKN.armX, PKN.sho, PKN.armZ); R.armR.position.set(PKN.armX, PKN.sho, PKN.armZ);
@@ -23,7 +24,7 @@ function pknFade() {
 function pknHolders() {   // the game's own held weapon/tool: shrink it into the knight's small hand
   let held = false;
   for (const o of armR.children) {
-    if (o.userData.kn) continue;
+    if (o.userData.kn || o.userData.gear) continue;
     if (!o.userData.knHold && !o.isMesh && Math.abs(o.position.y + 0.76) < 0.01) { o.userData.knHold = true; o.userData.knP = o.position.clone(); }
     if (!o.userData.knHold) continue;
     if (PKN.on) { o.position.set(0.05, -0.39, 0.1); o.scale.setScalar(0.68); } else { o.position.copy(o.userData.knP); o.scale.setScalar(1); }
@@ -33,11 +34,11 @@ function pknHolders() {   // the game's own held weapon/tool: shrink it into the
 }
 function pknApply(L) {
   L = L || CH_DEFAULT; PKN.on = (L.outfit || CH_DEFAULT.outfit) === 'knight';
-  const tint = pknTint(L.skin !== undefined ? L.skin : CH_DEFAULT.skin, L.shirt), key = JSON.stringify(tint);
+  const tint = Object.assign(pknTint(L.skin !== undefined ? L.skin : CH_DEFAULT.skin, L.shirt), typeof gearTint === 'function' ? gearTint() : {}), key = JSON.stringify(tint);
   if (PKN.key !== key) { for (const o of PKN.objs) if (o.parent) o.parent.remove(o); PKN.objs = pknKit({ legL, legR, armL, armR, torso }, tint, PKN.mat); PKN.key = key; }
   for (const g of [legL, legR, armL, armR, torso]) for (const o of g.children) {
     if (o.userData.kn) { o.visible = PKN.on; continue; }
-    if (o.userData.knHold) continue;
+    if (o.userData.knHold || o.userData.gear) continue;
     if (PKN.on) { if (o.visible) { o.visible = false; o.userData.knHid = true; } }
     else if (o.userData.knHid) { o.visible = true; o.userData.knHid = false; }
   }
