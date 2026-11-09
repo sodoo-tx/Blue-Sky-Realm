@@ -2,6 +2,14 @@
 
 Version: beta 2 (30 October 2026). Single offline game; saves live in the browser or on the PC under your account.
 
+## Update: 9 November 2026
+
+**The whole world goes chibi**
+- Every villager, guard, merchant, noble, race (orcs, elves, dwarves, goblins and more), undead and boss now has the big-head, short-leg chibi look of the knight hero. Hair, hats, helmets and beards grow with the head.
+- Horses, deer, boars and the other wild animals have bigger heads and big shiny eyes; wolves, spiders, bats and scorpions have bigger heads too, and dragons a larger head on the same neck.
+- All 274 Blender models were re-exported in a softer toy style: rounder bevelled edges, puffy tree crowns and bushes, rounded pine tiers, cleaner and brighter colours and lighter shadows. Buildings keep their exact size, so doors, rooms and collisions are unchanged.
+- The Adventurer outfit is chibi too.
+
 ## Update: 7 November 2026
 
 **A new hero: the chibi knight**
