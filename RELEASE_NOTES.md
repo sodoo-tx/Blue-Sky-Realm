@@ -2,6 +2,13 @@
 
 Version: beta 2 (30 October 2026). Single offline game; saves live in the browser or on the PC under your account.
 
+## Update: 9 November 2026 (performance)
+
+- The world now draws fewer triangles than before the chibi update (about 570k in town instead of 600k, down from 920k after the restyle): trees and bushes, which appear thousands of times, keep their light shapes; small trims use one bevel step; pine tiers are lighter.
+- Draw calls in town went from about 580 to about 460, and loaded geometries from 335 to 276.
+- The knight hero (and every online knight) uses 13k triangles instead of 31k, with the same look.
+- Chibi characters no longer keep a growing cache of reshaped parts: each villager's parts are freed when they leave, so memory stays flat on long sessions.
+
 ## Update: 9 November 2026 (gear)
 
 **Everything you equip now shows on your hero**
